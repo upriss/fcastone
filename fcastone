@@ -1,0 +1,1007 @@
+#!/usr/bin/perl
+# Copyright (c) 2009, Uta Priss. 
+# http://www.upriss.org.uk
+# For licence information run "fcastone -l"
+# Version 0.3
+
+my $dotlocation = `which dot`;
+chomp($dotlocation);
+
+### If you want to set the behaviour of the fcaStoneDotErrors.log file
+### or edit the location of Graphviz's dot program, edit the following lines.
+### my $errorslocation = "/dev/null";  means no error file will be created 
+
+my $errorslocation = "fcaStoneDotErrors.log";      
+#  $dotlocation = "/usr/local/graphviz-2.14/bin/dot"; 
+
+sub printlicence { print "
+
+    FcaStone - a program for FCA format conversion
+    Copyright (C) 2009 Uta Priss.
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>
+
+";}
+
+use strict;
+
+#%%%%%%%%%%%%%% read arguments, open files %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+my $var1;                                                ## temp variable
+my $filename1 = $ARGV[-2];                               ## input filename
+my $filename2 = $ARGV[-1];                               ## output filename
+my $script = $filename2;                                 ## GLOBAL VARIABLE
+my %opt;                                                 ## GLOBAL VARIABLE
+my $fiopt = substr($filename1,index($filename1,".")+1);  ## GLOBAL VARIABLE
+my $secopt = substr($filename2,index($filename2,".")+1); ## GLOBAL VARIABLE
+my $typxml = 0;                                          ## is it xml file?
+my @lines;                                               ## input for input()
+my ($filecont);                                          ## output from main_output()
+my @ctxt;                            ## contexts: from main_input() into main_output()
+                                     ## this is an array of hashs o,a,m: obj,attr,matr
+
+if ($ARGV[-1] eq "-l") { printlicence(); exit;}
+
+if ($filename1 =~ /^\-/ or $filename2 =~ /^\-/) {
+    print "usage: $0 [-bBcgijmnNOprstuUw] filename1 filename2\n";
+    print "Filenames must not start with '-'.\n"; exit;
+}
+
+$opt{box} = 0; $opt{cla} = 0; $opt{grp} = 0; $opt{ms} = 0; $opt{pip} = 0; 
+$opt{rot} = 0; $opt{sil} = 0; $opt{top} = 0; $opt{web} = 0; $opt{ima} = 0;
+$opt{noI} = 0; $opt{noO} = 0; $opt{uni} = 0; $opt{uxml} = 0; $opt{one} = 0;
+foreach $var1 (@ARGV) {                                      ## reading the options
+    if ($var1 =~ /^\-.*b/) { $opt{box} = 1; }
+    if ($var1 =~ /^\-.*B/) { $opt{Box} = 1; }
+    if ($var1 =~ /^\-.*c/) { $opt{cla} = 1; }
+    if ($var1 =~ /^\-.*g/) { $opt{grp} = 1; }
+    if ($var1 =~ /^\-.*i/) { $opt{ima} = 1; $opt{box} = 1;}  ### or Box if -B is chosen
+    if ($var1 =~ /^\-.*j/) { $opt{jpg} = 1; $opt{Box} = 1;}
+    if ($var1 =~ /^\-.*m/) { $opt{ms} = 1; }
+    if ($var1 =~ /^\-.*p/) { $opt{pip} = 1; }
+    if ($var1 =~ /^\-.*r/) { $opt{rot} = 1; }
+    if ($var1 =~ /^\-.*s/) { $opt{sil} = 1; }
+    if ($var1 =~ /^\-.*t/) { $opt{top} = 1; }                      ##all 4 needed
+    if ($var1 =~ /^\-.*w/) { $opt{web} = 1;$opt{noI} = 1;$opt{noO} = 1;$opt{sil} = 1;}
+    if ($var1 =~ /^\-.*n/) { $opt{noI} = 1; $opt{sil} = 1;}
+    if ($var1 =~ /^\-.*O/) { $opt{one} = 1; $opt{sil} = 1;}
+    if ($var1 =~ /^\-.*N/) { $opt{noO} = 1; $opt{sil} = 1;}
+    if ($var1 =~ /^\-.*u/ and $opt{uxml} == 0) { $opt{uni} = 1; }       
+    if ($var1 =~ /^\-.*U/) { $opt{uxml} = 1; $opt{uni} = 0; }
+    if ($var1 =~ /^\-/ and $var1 !~ /^[\-bBcgijmnNOprstuUw]+$/) {
+	showerror("That option is not yet implemented.",1);
+    }
+}
+if ($opt{noO}) { $errorslocation = "/dev/null" }
+if ($opt{Box}) { $opt{box} = 0 }
+
+if ($fiopt !~ /^(cxt|csc|csv|con|slf|bin.xml|csx|cex|tuples)$/ or $secopt !~ 
+    /^(cxt|csc|csv|con|slf|bin.xml|tex|csx|cex|fig|dot|svg|jpg|gif|png|ps|pdf|gxl|tuples|gml|html)$/) {
+    showerror("These file extensions are not yet supported.",1);
+}
+
+if ($opt{noI} == 0) {                                        ## open input file
+    if ($opt{uni} == 1 or $opt{uxml} == 1) {
+	open (FILE, '<:utf8', $filename1) || showerror("File does not exist.",1);
+    } else {
+	open (FILE, '<', $filename1) || showerror("File does not exist.",1);
+    }
+    @lines = <FILE>; close FILE;
+} else {                                                     ## or read STDIN 
+    if ($opt{one} == 0) {
+	@lines = <STDIN>; 
+    } else {                                                 ## one line input
+	$var1 = <STDIN>;
+	@lines = split (/\|%\|%/,$var1);
+    }
+}
+
+if (-e $filename2 and $opt{sil} == 0) {            ## if not silent: warn if out exists
+    print "$filename2 exists and will be overwritten, OK?";
+    $var1 = <STDIN>;
+    if ($var1 !~ /y/i) {exit;}
+} 
+
+if ($secopt =~ /svg|gxl|cex|csx|bin.xml/) { $typxml = 1; }  
+if ($secopt =~ /svg|jpg|gif|png|ps|pdf|gxl/) { $opt{grp} = 1; }  ## deal with graphviz
+if ($opt{grp} == 1) {
+    $var1 = `$dotlocation -V 2>&1`;                    ## direct stderr to stdout
+    if ($var1 !~ /dot.*version/i) {
+	showerror("Graphviz's dot program cannot be found.",1);
+    }
+}
+
+#%%%%%%%%%%%%%% in/out %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+chomp @lines;
+$var1 = join("%&%x",@lines);                            ## windows return char
+$var1 =~ s/\r//g;
+$var1 =~ s/\s+$//;                                      ## blank lines at end
+if ($var1 =~ /^\s*$/) { showerror("File is empty.",1); }
+@lines = split(/%&%x/,$var1);
+
+($ctxt[0]{o},$ctxt[0]{a},$ctxt[0]{m}) = main_input(@lines);  ## call input()
+$filecont = main_output($ctxt[0]);                           ## call output()
+
+#%%%%%%%%%%%%%% print %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+if ($opt{uni} == 1) { 
+    eval('use Encode;'); 
+    eval('$filecont = encode_utf8( $filecont )');        ## turns utf8 flag off
+} elsif ($opt{uxml} == 1) { 
+    eval('use Encode;'); 
+    eval('$filecont = encode("ascii", $filecont,Encode::FB_XMLCREF)');
+}
+
+if ($opt{grp} == 1) {
+    if ($secopt eq "gxl") {
+	if ($opt{noO} == 1) {open(PIPE, "| $dotlocation"."2gxl 2>$errorslocation");}
+	else { open(PIPE, "| $dotlocation"."2gxl -o$filename2  2>$errorslocation");}
+    } else {
+	if($opt{noO}==1){open(PIPE, "| $dotlocation -T$secopt 2>$errorslocation");}
+	else { open(PIPE,"| $dotlocation -T$secopt -o$filename2 2>$errorslocation");}
+    }
+    print PIPE $filecont;
+    close PIPE;
+
+} else {
+    if ($opt{ms} == 1) {$filecont =~ s/\n/\r\n/g;} 
+    if ($opt{noO} == 1) { 
+	if ($typxml == 0 and $opt{web} == 1) {$filecont =~ s/\n/<br>/g} 
+	elsif ($secopt ne "svg" and $opt{web} == 1) {
+	    $filecont =~ s/</&#60;/g; $filecont =~ s/>/&#62;/g; }
+	    if ($opt{one} == 1) {                                ## one line output
+		$filecont =~ s/\n/\|%\|%/g;
+		$filecont .= "\n";
+	    }
+	print $filecont; 
+    } else { 
+	open (OUT, '>',$filename2);
+	print OUT $filecont;
+	close OUT;
+    }
+}
+
+
+#%%%%%%%%%%%%%% input %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+sub main_input{
+
+    my (@lnes) = @_;
+    my ($temp1, $temp2, @outcome);
+    my ($adlimit, $odlimit, $aslct, $oslct, $rdlimit, $islct);
+    my ($ndlimit, $edlimit, $nslct, $eslct);
+    my (@objects,@attributes,@matrix);
+
+if ($fiopt eq "csc") {
+    $adlimit = 'ATTRIBUTES(.*?)RELATION';
+    $odlimit = 'OBJECTS(.*?)ATTRIBUTES';
+    $aslct ='\s*\d+\s+\w\d+\s+"(.*?)"\s*';      ## with \d must be single quotes
+    $oslct ='\s*\d+\s+\w\d+\s+"(.*?)"\s*';
+    $rdlimit = 'RELATION\s+\d+,\s+\d+\s*(.*?)\s*;';
+    @outcome = readcrs($adlimit,$odlimit, $aslct, $oslct, $rdlimit, @lnes);
+    @objects = @{$outcome[0]}; @attributes = @{$outcome[1]}; @matrix = @{$outcome[2]};
+} elsif ($fiopt eq "slf") {
+    foreach $temp1 (@lnes) {
+	$temp1 =~ s/(.*)/<$1>/;
+    }
+    $adlimit = '\[Attributes\]\>\s*(.*)\s*\<\[relation\]';
+    $odlimit = '\[Objects\]\>\s*(.*)\s*\<\[Attributes\]';
+    $aslct ='\s*<\s*(.*?)\s*>\s*';
+    $oslct ='\s*<\s*(.*?)\s*>\s*';
+    $rdlimit = '\[relation\]\>\s*(.*)';
+    @outcome = readcrs($adlimit,$odlimit, $aslct, $oslct, $rdlimit, @lnes);
+    @objects = @{$outcome[0]}; @attributes = @{$outcome[1]}; @matrix = @{$outcome[2]};
+} elsif ($fiopt eq "cex") {
+    $adlimit = '<Attributes>(.*)<\/Attributes>';
+    $odlimit = '<Objects>(.*)<\/Objects>';
+    $aslct ='\s*<Attribute Identifier="\d+">\s*<Name>\s*"?(.*?)"?\s*<\/Name>\s*<\/Attribute>\s*';
+    $oslct ='\s*<Object>\s*<Name>\s*"?(.*?)"?\s*<\/Name>\s*<Intent>\s*(.*?)<\/Intent>\s*<\/Object>\s*';
+    $islct ='\s*<HasAttribute AttributeIdentifier="(\d+)" \/>\s*';
+    @outcome = readcrs($adlimit,$odlimit, $aslct, $oslct, $islct, @lnes);
+    @objects = @{$outcome[0]}; @attributes = @{$outcome[1]}; @matrix = @{$outcome[2]};
+} elsif ($fiopt eq "bin.xml") {
+    $adlimit = '<\/Object>\s*(<A.*bute>)\s*<BinRel';
+    $odlimit = '<\/Name>\s*(<O.*ect>)\s*<Attribute>';
+    $aslct ='\s*<Attribute>\s*(.*?)\s*<\/Attribute>\s*';
+    $oslct ='\s*<Object>\s*(.*?)\s*<\/Object>\s*';
+    @outcome = readcrs($adlimit,$odlimit, $aslct, $oslct, "", @lnes);
+    @objects = @{$outcome[0]}; @attributes = @{$outcome[1]}; 
+    @outcome = ();
+    foreach $temp1 (@lnes) {
+	if ($temp1 =~ /<BinRel idxO="(\d+)" idxA="(\d+)"><\/BinRel>/) {
+	    push (@outcome, "$1,$2");
+	}
+    }
+    @outcome = reltocross (",", @outcome);
+    @matrix =  @{$outcome[2]};
+} elsif ($fiopt eq "con") {
+    foreach $temp1 (@lnes) {
+	$temp1 =~ s/\s*%.*//;                                ## remove comments
+	if (($temp1 !~ /^\s*$/ and $temp1 !~ /;/) or $temp1 =~ /;.*\S.*/) {
+	    print "Sorry, this file type is not supported.\n";
+	    print "All attributes of an object must be on a single line.\n";
+	    exit;
+	}
+	if ($temp1 =~ /;/) {
+	    $temp1 =~ /\s*(.*?)\s*:\s*(.*?)\s*;/;
+	    foreach $temp2 (split(/\s+/,$2)) {
+		push (@outcome, "$1,$temp2"); 
+	    }
+	}
+    }
+    @outcome = reltocross (",", @outcome);
+    @objects = @{$outcome[0]}; @attributes = @{$outcome[1]}; @matrix = @{$outcome[2]};
+} elsif ($fiopt eq "cxt") {
+    if ($lnes[4] eq "") { $temp1 = 5 } else { $temp1 = 4 };
+    if ($lnes[0] !~ /B/i or ((2 * $lnes[2]) + $lnes[3] +$temp1-1 != $#lnes)) {
+	showerror("Wrong cxt format.",1);
+    }
+    @objects = @lnes[$temp1..$lnes[2]+$temp1-1];
+    @attributes = @lnes[$lnes[2]+$temp1..$lnes[2]+$lnes[3]+$temp1-1];
+    @lnes = @lnes[$lnes[2]+$lnes[3]+$temp1..$#lnes];   
+    @matrix = changecrosssymbol("X","\\.","1","0",@lnes);
+} elsif ($fiopt eq "csv" or $fiopt eq "tuples") {
+    if ($opt{pip} == 1 ) { @outcome = reltocross ("\\|", @lnes); } 
+    elsif ($fiopt eq "tuples" ) {shift @lnes;@outcome = reltocross ("\\t", @lnes);} 
+    else { @outcome = reltocross (",", @lnes); }
+    @objects = @{$outcome[0]}; @attributes = @{$outcome[1]}; @matrix = @{$outcome[2]};
+} elsif ($fiopt eq "csx") {
+    $ndlimit = '(<node.*<\/node>)';
+    $edlimit = '(<edge.*)<projectionBase>';
+    $nslct = '\s*<node id="(\d+)">(.*?)<\/node>\s*';
+    $oslct = '\s*<object>(.*?)<\/object>\s*';
+    $aslct = '\s*<attribute>(.*?)<\/attribute>\s*';
+    $eslct = '\s*<edge from="(\d+)" to="(\d+)" />\s*';
+    @outcome = readcsx($ndlimit,$edlimit,$nslct,$oslct,$aslct,$eslct,@lnes);
+    @objects = @{$outcome[0]}; @attributes = @{$outcome[1]}; @matrix = @{$outcome[2]};
+}
+    return \@objects, \@attributes, \@matrix;
+
+}
+#%%%%%%%%%%%%%%%%%%%%% output %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+sub main_output{
+    my (@objects) = @{$_[0]{o}};
+    my (@attributes) = @{$_[0]{a}};
+    my (@matrix) = @{$_[0]{m}};
+    my (@concepts, @gammaM, @muM, @relM, @ExtM, @IntM);     ## used in dot
+    my ($temp1, $temp2, @tempout);
+    my ($fctt);
+
+if ($secopt eq "cxt") {
+    $fctt = "B\n\n".@objects."\n".@attributes."\n\n";
+    foreach $temp1 (@objects)    { $fctt .= "$temp1\n"; }
+    foreach $temp1 (@attributes) { $fctt .= "$temp1\n"; }
+    foreach $temp1 (@matrix) {
+	foreach $temp2 (@{$temp1}) {
+	    if ($temp2 == 0) {$fctt .= ".";} else {$fctt .= "X";}
+	}
+	$fctt .= "\n";
+    }
+} elsif ($secopt eq "csc") {
+    $fctt = "FORMAL_CONTEXT\n   Name =\n      TITLE \"\"\n      OBJECTS\n";
+    for ($temp1=0; $temp1 <= $#objects; $temp1++) {
+	$fctt .= "    $temp1 G$temp1 \"$objects[$temp1]\"\n"; 
+    }
+    $fctt .= "      ATTRIBUTES\n";
+    for ($temp1=0; $temp1 <= $#attributes; $temp1++) {
+	$fctt .= "    $temp1 M$temp1 \"$attributes[$temp1]\"\n"; 
+    }
+    $fctt .= "      RELATION\n".($#objects+1).", ".($#attributes+1)."\n";
+    foreach $temp1 (@matrix) {
+	foreach $temp2 (@{$temp1}) {
+	    if ($temp2 == 0) {$fctt .= ".";} else {$fctt .= "*";}
+	}
+	$fctt .= "\n";
+    }
+    $fctt .= ";\n";
+} elsif ($secopt eq "slf") {
+    $fctt = "[Lattice]\n".($#objects+1)."\n".($#attributes+1)."\n"."[Objects]\n";
+    for ($temp1=0; $temp1 <= $#objects; $temp1++) {$fctt .= "$objects[$temp1]\n";}
+    $fctt .= "[Attributes]\n";
+    for ($temp1=0; $temp1 <= $#attributes;$temp1++){$fctt.="$attributes[$temp1]\n";}
+    $fctt .= "[relation]\n";
+    foreach $temp1 (@matrix) {
+	foreach $temp2 (@{$temp1}) {
+	    if ($temp2 == 0) {$fctt .= "0 ";} else {$fctt .= "1 ";}
+	}
+	$fctt .= "\n";
+    }
+} elsif ($secopt eq "bin.xml") {
+    $fctt = "<Galicia_Document>\n".'<BinaryContext numberObj="'.($#objects+1).'" ';
+    $fctt .= 'numberAtt="'.($#attributes+1)."\">\n<Name> Ctx_1 </Name>\n";
+    for ($temp1=0; $temp1 <= $#objects; $temp1++) { 
+	$fctt .= "<Object>$objects[$temp1]</Object>\n";
+    }
+    for ($temp1=0; $temp1 <= $#attributes; $temp1++) { 
+	$fctt .= "<Attribute>$attributes[$temp1]</Attribute>\n";
+    }
+    for ($temp1=0; $temp1<= $#matrix; $temp1++) {
+	for ($temp2 = 0; $temp2 <= $#{$matrix[$temp1]}; $temp2++) {
+            if ($matrix[$temp1]->[$temp2] == 1) {
+		$fctt.='<BinRel idxO="'.$temp1.'" idxA="'.$temp2."\"></BinRel>\n";
+	    }
+	}
+    }
+    $fctt .= "</BinaryContext>\n</Galicia_Document>\n";
+} elsif ($secopt eq "csx") {
+    $fctt = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<conceptualSchema ";
+    $fctt .= "version=\"TJ1.0\">\n<manyValuedContext>\n<objects>\n";
+    for ($temp1=0; $temp1 <= $#objects; $temp1++) { 
+	$fctt .= "<object contextPosition=\"$temp1\" "; 
+	$fctt .= "objectId=\"$objects[$temp1]\">$objects[$temp1]</object>\n";
+    }
+    $fctt .= "</objects>\n<types>\n";
+    $fctt .= "<xsd:simpleType xmlns:xsd=\"http://www.w3.org/2001/XMLSchema\"";
+    $fctt .= " name=\"single valued\">\n<xsd:restriction base=\"xsd:string\">\n";
+    $fctt .= "<xsd:enumeration value=\"X\" />\n</xsd:restriction>\n";
+    $fctt .= "</xsd:simpleType>\n</types>\n<attributes>\n";
+    for ($temp1=0; $temp1 <= $#attributes; $temp1++) { 
+	$fctt .= "<attribute name=\"$attributes[$temp1]\" "; 
+	$fctt .= "typeRef=\"single valued\" attributeId=\"$attributes[$temp1]\" />\n";
+    }
+    $fctt .= "</attributes>\n<relation>\n";
+    for ($temp1=0; $temp1<= $#matrix; $temp1++) {
+	for ($temp2 = 0; $temp2 <= $#{$matrix[$temp1]}; $temp2++) {
+            if ($matrix[$temp1]->[$temp2] == 1) {
+		$fctt .= "<tuple value=\"X\" objectRef=\"$objects[$temp1]\" ";
+		$fctt .= "attributeRef=\"$attributes[$temp2]\" />\n";
+	    }
+	}
+    }
+    $fctt .=  "</relation>\n</manyValuedContext>\n</conceptualSchema>\n";
+
+} elsif ($secopt eq "cex") {
+    $fctt = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
+    $fctt .="<ConceptualSystem><Version MajorNumber=\"1\" MinorNumber=\"0\" />";
+    $fctt .= "<Contexts><Context Identifier=\"0\" Type=\"Binary\"><Attributes>";
+    for ($temp1=0; $temp1 <= $#attributes; $temp1++) {
+        $fctt .= "<Attribute Identifier=\"$temp1\"><Name>";
+	$fctt .= "$attributes[$temp1]</Name></Attribute>";
+    }
+    $fctt .= "</Attributes><Objects>";
+    for ($temp1=0; $temp1 <= $#objects; $temp1++) {
+        $fctt .= "<Object><Name>$objects[$temp1]</Name><Intent>";
+	for ($temp2 = 0; $temp2 <= $#{$matrix[$temp1]}; $temp2++) {
+            if ($matrix[$temp1]->[$temp2] == 1) {
+                $fctt .= "<HasAttribute AttributeIdentifier=\"$temp2\" />";
+            }
+        }
+
+	$fctt .= "</Intent></Object>";
+    }
+    $fctt .= "</Objects></Context></Contexts> <RecalculationPolicy";
+    $fctt .= " Value=\"Clear\" /><Lattices /></ConceptualSystem>";
+} elsif ($secopt eq "con") {
+    for ($temp1=0; $temp1 <= $#objects; $temp1++) {
+        $fctt .= "$objects[$temp1]:";
+	if ($objects[$temp1] =~ /[^\w\.,\s]/) {
+	    print "Colibri only supports alphanumeric, dot or underscore.\n";
+	    print "Please remove these characters from your input file.\n";
+	    print "Then try again.\n"; exit;
+	}
+	for ($temp2 = 0; $temp2 <= $#{$matrix[$temp1]}; $temp2++) {
+            if ($matrix[$temp1]->[$temp2] == 1) {
+		if ($attributes[$temp1] =~ /[^\w\.,\s]/) {
+		    print "Colibri only supports alphanumeric, dot or underscore.\n";
+		    print "Please remove these characters from your input file.\n";
+		    print "Then try again.\n"; exit;
+		}
+                $fctt .= "\t$attributes[$temp2]";
+            }
+        }
+	$fctt .= ";\n";
+    }
+} elsif ($secopt eq "csv" or $secopt eq "tuples") {
+    if ($secopt eq "tuples") {
+	$fctt .= "Objects\tAttributes\n";
+    }
+    for ($temp1 = 0; $temp1 <= $#matrix; $temp1++) {
+	for ($temp2 = 0; $temp2 <= $#{$matrix[$temp1]}; $temp2++) {
+            if ($matrix[$temp1]->[$temp2] == 1) {
+		if ($opt{pip} == 1) {
+		    $fctt .= "$objects[$temp1]|$attributes[$temp2]\n"; }
+		elsif ($secopt eq "tuples") {
+		    $fctt .= "$objects[$temp1]\t$attributes[$temp2]\n"; }
+		else { $fctt .= "$objects[$temp1],$attributes[$temp2]\n"; }
+	    }
+        }
+    }
+} elsif ($secopt eq "tex") {
+    $fctt = "\\documentclass{article}\n\\usepackage{fca}\n";
+    $fctt .= "\n\n\\begin{document}\n\n"."\\begin{figure}\n\\begin{cxt}\n";
+    for ($temp1=0; $temp1 <= $#attributes; $temp1++) {
+        if ($opt{rot} == 1) { $fctt .= "\\atr{".$attributes[$temp1]."}\n"; } 
+	else { $fctt .= "\\att{".$attributes[$temp1]."}\n"; }
+    }
+    for ($temp1=0; $temp1 <= $#objects; $temp1++) {
+        $fctt .= "\\obj{";
+        for ($temp2 = 0; $temp2 <= $#{$matrix[$temp1]}; $temp2++) {
+            if ($matrix[$temp1]->[$temp2] == 1) { $fctt .= "x"; }
+            else { $fctt .= "."; }
+        }
+        $fctt .= "}{".$objects[$temp1]."}\n";
+    }
+    $fctt .= "\\end{cxt}\n\\end{figure}\n\n\\end{document}";
+} elsif ($secopt eq "html") {
+    $fctt = "<table><tr><td>\n";
+    for ($temp1=0; $temp1 <= $#attributes; $temp1++) {
+	$fctt .= "<td><input type='text' name='c$temp1' size='4'";
+	$fctt .= "value='$attributes[$temp1]' />\n"; 
+    }
+    for ($temp1=0; $temp1 <= $#objects; $temp1++) {
+        $fctt .= "<tr><td><input type='text' name='r$temp1' size='15'";
+	$fctt .= "value='$objects[$temp1]' />\n";
+        for ($temp2 = 0; $temp2 <= $#{$matrix[$temp1]}; $temp2++) {
+	    $fctt .= "<td>";
+            if ($matrix[$temp1]->[$temp2] == 1) { 
+		$fctt .= "<input type='checkbox' name='$temp1,$temp2' value='1'";
+		$fctt .= " checked />\n"; 
+	    }
+            else { 
+		$fctt .= "<input type='checkbox' name='$temp1,$temp2' value='1' />\n"; 
+	    }
+        }
+    }
+    $fctt .= "<input type='hidden' name='rownumber' value='$#objects'>\n";
+    $fctt .= "<input type='hidden' name='colnumber' value='$#attributes'>\n";
+    $fctt .= "</table>";
+
+
+} elsif ($secopt eq "fig" and $opt{grp} == 0) {
+    $fctt = drawfig(\@objects, \@attributes, \@matrix);
+} elsif ($secopt eq "dot" or $secopt eq "svg" or $secopt eq "jpg" 
+	 or $secopt eq "gif" or $secopt eq "png" or $secopt eq "ps" 
+	 or $secopt eq "pdf" or $secopt eq "fig" or $secopt eq "gxl"
+	 or $secopt eq "gml") {
+    @tempout = GanterAlg(\@matrix);
+    @concepts = @{$tempout[0]}; @ExtM = @{$tempout[1]}; @IntM = @{$tempout[2]};
+    @tempout = createRel(\@IntM);
+    @relM = @{$tempout[0]};  ## @reltrans = @{$tempout[1]}; @rank = @{$tempout[2]};
+    @tempout = gammaMu(\@ExtM,\@IntM,\@matrix);
+    @gammaM = @{$tempout[0]}; @muM = @{$tempout[1]};
+    $fctt = drawWebDot(\@objects,\@attributes,\@concepts,\@gammaM,\@muM,\@relM);
+}
+    return $fctt;
+
+}
+
+#%%%%%%%%%%%%%%%%%%%% end of output %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+sub changecrosssymbol {                              ## does this: .X..X -> 01001
+    my ($char1,$char2,$char1a, $char2a,@lns) = @_;   ## X,.,1,0, lines
+    my ($elem, $temp, @rel);                         ## also changes it into array ref
+    foreach $elem (@lns) {
+	$elem =~ /([$char1$char2]+)/i;
+	$temp = $1;
+	$temp =~ s/$char1/$char1a/gi;
+	$temp =~ s/$char2/$char2a/gi;
+	push (@rel, [split (//,$temp)]);
+    }
+    return @rel;
+}
+
+sub reltocross {                                 ## input: obj $deli attr (eg csv file)
+    my ($deli, @lns) = @_;
+    my (@objs, @attrs, @rel, $i, $j, $elem, %result);
+    my (%hash1, %hash2) = ((),());
+    foreach $elem (@lns) {
+        ($i,$j) = split(/$deli/,$elem);
+        $result{$i.",".$j} = 1;
+        $hash1{$i} = 1;
+        $hash2{$j} = 1;
+    }
+    @objs = sort keys %hash1;
+    @attrs = sort keys %hash2;
+
+    for ($i = 0; $i < @objs; $i++) {
+        for ($j = 0; $j < @attrs; $j++){
+            if ($result{$objs[$i].",".$attrs[$j]} &&
+            $result{$objs[$i].",".$attrs[$j]} == 1) { $rel[$i][$j] = "1"; } 
+	    else { $rel[$i][$j] = "0";  }
+        }
+    }
+    return \@objs, \@attrs, \@rel;
+}
+
+sub numtorel {                                   ## input: object $strB 0 $strA 5 $strA
+    my ($strA, $strB, $length, @objs) = @_;      ## output: objects, rel: 000010...
+    my ($elem, $temp, @array, $ct, @rel);
+    for ($ct = 0; $ct<= $#objs; $ct++) {
+	push (@rel, [split (//,"0" x $length)]);
+	($objs[$ct], $temp) = split (/$strB/,$objs[$ct]);
+	@array = split (/$strA/, $temp);
+	foreach $elem (@array) {
+	    $rel[$ct][$elem] = 1;
+	}
+    }
+    return (\@objs, \@rel);
+}
+
+sub transclos {
+    my ($dir,@edgs) = @_;
+    my (%rel1, %rel2, $elem1, $elem2, $elem3, $flag);
+    foreach $elem1 (@edgs) {
+	if ($dir eq "down") { ($elem3, $elem2) = split(/~~/, $elem1); } 
+	else { ($elem2, $elem3) = split(/~~/, $elem1); }
+	if (!$rel1{$elem2}) { $rel1{$elem2} = {};}
+	$rel1{$elem2}{$elem3}=1;
+    }
+    $flag = 1;
+    while ($flag == 1) {
+	$flag = 0;
+	foreach $elem1 (sort keys(%rel1)) {
+	    foreach $elem2 (sort keys(%{$rel1{$elem1}})) {
+		foreach $elem3 (sort keys(%{$rel1{$elem2}})) {
+		    if ($rel1{$elem1}{$elem2} == 1 
+			and $rel1{$elem2}{$elem3} == 1
+			and !$rel1{$elem1}{$elem3} == 1) {
+			$rel1{$elem1}{$elem3} = 1;
+			$flag = 1;
+		    }
+		}
+	    }
+	}
+    }
+    return %rel1;
+}
+
+sub readcrs {
+    my ($attrdlimit, $objdlimit, $attrslct, $objslct, $rest, @lns) = @_;
+    my $ln = join(" ",@lns);
+    my ($item, @array, @objs, @attrs, @rel);
+    my ($st1,$st2,$st3) = ("%,%","&,&","~~");
+
+    $ln =~ /$attrdlimit/i;
+    $item = $1;                      ## note: $1 and $2 come from the string
+    $item =~ s/$attrslct/$1$st1/ig;
+    @attrs = split(/$st1/, $item);
+    $ln =~ /$objdlimit/i;
+    $item = $1;
+    if ($fiopt eq "cex" or $fiopt eq "bin.xml") {
+	$item =~ s.<Intent />.<Intent></Intent>.ig;
+	$item =~ s/$rest/$1$st2/ig;
+	if ($fiopt eq "cex") { $item =~ s/$objslct/$1$st3$2$st1/ig }
+	else { $item =~ s/$objslct/$1$st3$st1/ig }
+	@objs = split(/$st1/, $item);
+	@array = numtorel($st2, $st3, $#attrs+1, @objs);
+	@objs = @{$array[0]};  @rel=  @{$array[1]};
+    } elsif ($fiopt eq "csc" or $fiopt eq "slf") {
+	$item =~ s/$objslct/$1$st1/ig;
+	@objs = split(/$st1/, $item);
+	$ln =~ /$rest/i;
+	$item = $1;
+	if ($fiopt eq "slf") { 
+	    $item =~ s/\s//g; 
+	    $item =~ s/<//g; 
+	    @rel = split (/>/,$item);
+	    @rel = changecrosssymbol("1","0","1","0",@rel);
+	} else { 
+	    @array = split (/\s+/,$item); 
+	    @rel = changecrosssymbol("\\*","\\.","1","0",@array);
+	}
+    }
+    return(\@objs, \@attrs, \@rel);
+}
+
+sub readcsx {
+    my ($nodesdlimit,$edgesdlimit,$nodeslct,$objslct,$attrslct,$edgeslct,@lns)= @_;
+    my $ln = join(" ",@lns);
+    if ($ln !~ /node/) {
+	showerror("This type of csx file is not yet implemented. ".
+		  "The file must contain a diagram.",1);
+    }
+    my ($item, $elem, $elem2, $tnode, @nodes, @edges, %edgerel, %mu, @array, $ct);
+    my (@objs, @attrs, @rel);
+    my ($st1,$st2,$st3) = ("%,%","&,&","~~");
+
+    $ln =~ /$nodesdlimit/i;
+    $item = $1;                           ## note: $1 and $2 come from the string
+    $item =~ s/$nodeslct/$1$st3$2$st1/ig;
+    @nodes = split(/$st1/, $item);
+    foreach $elem (@nodes) {
+	$elem =~ /(.*?)$st3/;
+	$tnode = $1;
+	if ($elem =~ /(($objslct)+)/) {
+	    $item = $1;
+	    $item =~ s/.*?$objslct.*?/$1$st1$tnode$st2/gi;
+	    push (@objs, split(/$st2/,$item));
+	}
+        if ($elem =~ /(($attrslct)+)/) {	
+	    $item = $1;
+	    $item =~ s/.*?$attrslct.*?/$1$st2/gi;
+	    @array = split(/$st2/,$item);
+	    push (@attrs, @array);
+	    for ($ct=0; $ct<=$#array; $ct++) {
+		$mu{$tnode} .= ($ct+$#attrs-$#array)."$st2";
+	    }
+	}
+    }
+    $ln =~ /$edgesdlimit/i;
+    $item = $1;
+    $item =~ s/$edgeslct/$1$st3$2$st1/ig;
+    @edges = split(/$st1/, $item);
+    %edgerel = transclos("down",@edges); 
+
+    foreach $elem (@objs) {
+	($elem,$tnode) = split(/$st1/,$elem);
+	$elem .= "$st1";
+	if ($mu{$tnode}) { $elem .= $mu{$tnode}; }
+	foreach $elem2 (sort keys (%{$edgerel{$tnode}})) {
+	    if ($mu{$elem2}) { $elem .= $mu{$elem2}; }
+	}
+    }
+    @array = numtorel($st2, $st1, $#attrs+1, @objs);
+    @objs = @{$array[0]};  @rel=  @{$array[1]};
+    return \@objs, \@attrs, \@rel;
+}
+
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+sub drawfig {
+    my @objs = @{$_[0]};
+    my @attrs = @{$_[1]};
+    my @rel = @{$_[2]};
+    my ($xn, $yn, $elem, $elem2, $ct2);
+    my $x0=1200; 
+    my $y0=3000;
+    my $col=300;
+    my $row=300;
+    my $ct = 0;
+    my $fcontent = 
+	"#FIG 3.2\nPortrait\nCenter\nInches\nLetter\n100.00\nSingle\n-2\n1200 2\n";
+
+    foreach $elem (@objs) {
+	$fcontent .="4 0 -1 0 0 0 12 0.0000 4 135 280 $x0 ";
+	$fcontent .= ($y0+$ct*$row)." $elem\\001\n";
+	$ct++;
+    }
+    $yn = $y0 + ($ct-1)*$row;
+    $fcontent .="2 4 0 1 0 7 50 -1 -1 0.000 0 0 7 0 0 5\n";
+    $fcontent .="\t ".($x0+1725)." ".($yn+150)." ".($x0+1725);
+    $fcontent .=" ".($y0-275)." ".($x0-75)." ".($y0-275)." ".($x0-75);
+    $fcontent .=" ".($yn+150)." ".($x0+1725)." ".($yn+150)."\n";
+
+    $ct = 0;
+    foreach $elem (@attrs) {
+	$xn = $x0+2000+$ct*$col;
+	$fcontent .="4 0 -1 0 0 0 12 1.5708 4 135 280 $xn ".($y0-$row-75)." $elem\\001\n";
+	$ct++;
+    }
+    $fcontent .="2 4 0 1 0 7 50 -1 -1 0.000 0 0 7 0 0 5\n";
+    $fcontent .="\t ".($xn+150)." ".($y0-325)." ".($xn+150);
+    $fcontent .=" ".($y0-2700)." ".($x0+1800)." ".($y0-2700)." ".($x0+1800);
+    $fcontent .=" ".($y0-325)." ".($xn+150)." ".($y0-325)."\n";
+
+    $fcontent .="2 4 0 1 0 7 50 -1 -1 0.000 0 0 7 0 0 5\n";
+    $fcontent .="\t ".($xn+150)." ".($yn+150)." ".($xn+150);
+    $fcontent .=" ".($y0-275)." ".($x0+1800)." ".($y0-275)." ".($x0+1800);
+    $fcontent .=" ".($yn+150)." ".($xn+150)." ".($yn+150)."\n";
+
+    $ct= 0;
+    foreach $elem (@rel) {
+	$ct2 = 0;
+        foreach $elem2 (@{$elem}) {
+            if ($elem2 == 1) {
+		$fcontent .="4 0 -1 0 0 0 12 0.0000 4 135 280 ";
+		$fcontent .=($x0+1850+$ct2*$col)." ".($y0+$ct*$row)." X\\001\n";
+	    }
+	    $ct2++;
+        }
+	$ct++;
+    }
+    return $fcontent;
+}
+
+
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+sub GanterAlg {
+
+    ## This is an implementation of an algorithm described by Bernhard Ganter 
+    ## in "Two basic algorithms in concept analysis." Technische Hochschule
+    ## Darmstadt, FB4-Preprint, 831, 1984.
+
+                          ## all arrays except @idx are arrays of arrays of 0's and 1's
+    my @m = @{$_[0]};     ## the columns of context, $m[0] is really $m[0]'
+    my (@idx, $i, $j);    ## index for attributes, starting from left         
+    my $end;              ## $end for terminating the while loop
+    my (@Ext, @Int);      ## are returned, ext/int for each concept
+    my $anzCpt;           ## counts the concepts
+    my (@A, @B);          ## list of extents; list of intents
+    my (@temp, $break);   ## temporary variables
+    my $lvl = 0;          ## $lvl the level in the lattice from the top
+    $idx[$lvl] = -1;      ## is lower than the index of leftmost attr
+
+#%%%%% initialize values %%%%%%%%%%
+
+    my $anzM= $#m +1;                          ## number of attr. and objs
+    my $anzG = $#{$m[0]} +1;                   ## only needed for initialization
+
+    for ($i = 0; $i <= $anzG -1; $i++) {       ## initialize $A[0] = [1,...,1]
+        push (@{$A[0]}, "1") ;
+    }
+    for ($i = 0; $i <= $anzM -1; $i++) {       ## initialize $B[0] = [0,...,0]
+        push (@{$B[0]}, "0") ;
+    }
+
+    @{$Ext[0]} = @{$A[0]};                     ## initialize $Ext[0] and $Int[0]
+    @{$Int[0]} = @{$B[0]}; 
+
+    $end = "1 " x ($anzM- 1);                  ## the intent of the bottom node
+    $end .= "1";                               ## for terminating the while loop 
+
+#%%%% start of algorithm %%%%%%%%%%%%%%%%%%%
+
+    while ("@{$B[$lvl]}" ne "$end"){           ## continue until at bottom concept
+
+	for ($i= $anzM-1; $i >= 0; $i--) {     ## A
+	    $break = 0;
+	    if ($B[$lvl][$i] != 1) {           ## B, attribute concept exists => ignore
+		while ($i < $idx[$lvl]) {      ## C, new attr right of previous  
+		    $lvl--;                    ## then reduce level
+		} 
+		$idx[$lvl+1] = $i;             ## D, next: 
+                                               ## calculate new extent as intersection
+                                               ## of prev. extent with $m[$i]'
+		@{$A[$lvl +1]} = split(/ /,  "@{$A[$lvl]}" & "@{$m[$i]}");
+		for ($j  = 0; $j < $i; $j++) {     
+                                               ## E - G check whether attr to left has
+                                               ## larger intent
+		    if ($break == 0 && $B[$lvl][$j] != 1) {    
+                                               ## missing in alg!, ignore old attrs
+			@temp = split(/ /,  "@{$A[$lvl+1]}" & "@{$m[$j]}");
+			if ("@temp" eq "@{$A[$lvl+1]}") {
+			    $break =1;      
+			}                      ## if yes, skip rest of foreach loop 
+		    }
+		}
+		if ($break != 1) { 
+		    @{$B[$lvl +1]} = @{$B[$lvl]};    ## H, calculate new intent
+		    $B[$lvl+1][$i] = 1;
+		    for ($j  = $i+1; $j < $anzM; $j++) {               
+                                               ## I - L, check whether intent can be
+                                               ## enlarged to the right 
+			if ($B[$lvl+1][$j] !=1) {           ## ignore old attrs
+			    @temp = split(/ /,  "@{$A[$lvl+1]}" & "@{$m[$j]}");
+			    if ("@temp" eq "@{$A[$lvl+1]}") {
+				$B[$lvl+1][$j] = 1;
+			    }
+			}
+		    }
+		    $lvl++;                                   ## next level
+
+		    $anzCpt++;
+		    @{$Ext[$anzCpt]} = @{$A[$lvl]};
+		    @{$Int[$anzCpt]} = @{$B[$lvl]};
+		    last;
+		}   ## if break -- F
+	    } ##  if -- B
+	} ## foreach
+    } ## while
+#%%%%%%%% final steps %%%%%%%%%%%%%%%%%%%
+
+    my $elem;
+    my $a1 = join ("",@{$Ext[0]});
+    my $a2 = join ("",@{$Ext[1]});
+    if ($a1 eq $a2) {
+	shift @Ext;
+	shift @Int;
+	$anzCpt--;
+    }
+
+    my @c;
+    for ($i = 0; $i <= $anzCpt; $i++) {
+        $c[$i] = "$i";
+    }
+    return (\@c,\@Int,\@Ext);
+## for some reason Int and Ext were switched in the algorithm 
+
+} 
+
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+sub createRel {
+
+## output: r (subconcept superconcept relation), rt (trans. closure of r)
+## s (ranked concepts)
+
+    my @Int = @{$_[0]};
+    my $anzCpt = $#Int;
+    my (@rank, @super, @r, @rt, @temp,$elem, $i, $j);
+    my @s = ([0]);
+
+    for ($i= 0; $i<=$anzCpt; $i++) {                      ## initialize relation
+	for ($j= 0; $j<=$anzCpt; $j++) {
+	    $r[$i][$j] = 0;
+	    $rt[$i][$j] = 0;
+	}
+    }
+
+    for ($i = 1; $i <= $anzCpt; $i++) {
+	$rank[$i] = 1;
+	for ($j = $i-1; $j >= 0; $j--) {
+	    @temp = split(/ /, "@{$Int[$j]}" & "@{$Int[$i]}");
+	    if ("@temp" eq "@{$Int[$i]}") {
+		push (@{$super[$i]}, $j);
+		$r[$i][$j] = 1;
+		$rt[$i][$j] = 1;
+		foreach $elem (@{$super[$i]}){            ## delete transitive subs
+		    if ($r[$elem][$j] == 1 ) {          
+			$r[$i][$j] = 0;
+			if ($rank[$elem] >= $rank[$i]){
+			    $rank[$i] = $rank[$elem] +1;
+			}
+			last;
+		    }
+		}
+	    }
+	}
+	push (@{$s[$rank[$i]]}, $i);
+    }
+    return (\@r, \@rt, \@s);
+} 
+
+
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+sub gammaMu {
+    my @ext = @{$_[0]};
+    my @int = @{$_[1]};
+    my @cxt = @{$_[2]};
+    my (@gamma, @mu, $i, $j,$k, @invcxt);
+    for ($i = 0; $i <= $#{$cxt[0]};$i++) {           ## inverse context
+        for ($k = 0; $k <= $#cxt; $k++) {
+            $invcxt[$i][$k] = $cxt[$k][$i];
+        }
+    }
+    for ($j = 0; $j <= $#int; $j++) {                ## iterate thro concepts
+        for ($i = 0; $i <= $#cxt;$i++) {             ## iterate thro objs
+            if ("@{$cxt[$i]}" eq "@{$int[$j]}") {$gamma[$i][$j] = 1; } 
+	    else { $gamma[$i][$j] = 0; }
+        }
+        for ($i = 0; $i <= $#{$cxt[0]};$i++) {       ## iterate thro attrs
+            if ("@{$invcxt[$i]}" eq "@{$ext[$j]}") { $mu[$i][$j] = 1; } 
+	    else { $mu[$i][$j] = 0; }
+        }
+    }
+    return (\@gamma,\@mu);
+}
+
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+sub drawWebDot {
+
+    my @objs = @{$_[0]};
+    my @attrs = @{$_[1]};
+    my @cpts = @{$_[2]};
+    my @gamma = @{$_[3]};
+    my @mu = @{$_[4]};
+    my @subcpt = @{$_[5]};
+    my ($j, $i);
+    my ($objfull, $attrfull, $attrshrt, $objshrt) = ("","","","");
+    my $filebuffer;
+    my $otherBox;
+
+    if ($secopt eq "gml") { $filebuffer ="graph [\n directed 1\n"; 
+    } elsif ($opt{Box} == 1) {
+	$filebuffer ="digraph Lat{\n node[shape=plaintext]\n";
+	$filebuffer .= "edge[dir=\"none\"];\n";
+    } elsif ($opt{box} == 1) { 
+	$filebuffer ="digraph Lat{\n node [ shape=record,margin=\"0.2,0.055\" ];\n"; 
+	$filebuffer .= "edge[dir=\"none\"];\n";
+    } else {
+	$filebuffer ="digraph Lat{\n node[shape=circle,style=filled,label=\"\"];\n";
+	$filebuffer .= "edge[dir=\"none\",minlen=2];\n";
+    }
+
+    for ($i=0;$i <=$#cpts; $i++) {
+	($objfull, $attrfull) = ("","");
+        $otherBox = "";
+	for ($j=0;$j <=$#gamma; $j++) {
+	    if ($gamma[$j][$i] == 1) { 
+		$objfull .= "$objs[$j]; "; 
+		if ($opt{top} == 1 and $objfull ne "") {
+		    $filebuffer.="c$i-> c$i\[headlabel=\"$objs[$j]\",labeldistance=1,";
+		    $filebuffer .= "labelangle=270,color=transparent\]\n";
+		}
+		if ($opt{cla} == 1) {last;}
+                if ($opt{Box} == 1) {
+		    if ($opt{ima} == 1) { 
+			if ($script =~ /(\w+)\.\w+/) { $script = $1;}
+			$otherBox .= "<TD href='$script?obj=$objs[$j]'>$objs[$j]</TD>";
+		    } elsif ($opt{jpg} == 1) {
+                        if ($objs[$j] =~ /(.*)\|(.*)/) { 
+			    $otherBox .= "<TD href='$2'>"; 
+			    $otherBox .= "<IMG SRC='$1'/></TD>";
+			} else { 
+			    $otherBox .= "<TD href='$objs[$j]'>"; 
+			    $otherBox .= "<IMG SRC='$objs[$j]'/></TD>";
+			}
+                    } else { $otherBox .= "<TD>$objs[$j]</TD>"; }
+		}
+	    }
+	}
+	for ($j=0;$j <=$#mu; $j++) {
+	    if ($mu[$j][$i] == 1) { 
+		$attrfull .= "$attrs[$j]; "; 
+		if ($opt{top} == 1 and $attrfull ne "") {
+		    $filebuffer.="c$i->c$i\[taillabel=\"$attrs[$j]\",labeldistance=2,";
+		    $filebuffer .= "labelangle=90,color=transparent\]\n";
+		}
+		if ($opt{cla} == 1) {last;}
+	    }
+	}
+	chop $attrfull; chop $attrfull;
+	chop $objfull; chop $objfull;
+	if ($attrfull =~ /^(.{0,30})/) { $attrshrt = $1 }
+	if ($objfull =~ /^(.{0,30})/)  { $objshrt = $1 }
+	if ($attrfull ne $attrshrt) { $attrshrt .= "..." }
+	if ($objfull ne $objshrt) { $objshrt .= "..." }
+	if ($secopt eq "gml") {
+	    $filebuffer .= "node [ id $i label \"$objfull | $attrfull\" ]\n"; 
+	} elsif ($opt{Box} == 1) {
+            if ($otherBox eq "") { $otherBox = "<TD> </TD>"; }
+	    $filebuffer .= "c$i [label = 
+                    <<TABLE border='0' cellborder='1' cellspacing = '0'>
+                    <TR><TD>$attrshrt</TD></TR><TR><TD><table border = '0'>
+                    <TR>$otherBox</TR></table></TD></TR></TABLE>>];\n";
+	} elsif ($opt{box} == 1) {
+	    $filebuffer .= "c$i [label = \"{$attrshrt|$objshrt}\"";
+	    if ($opt{ima} == 1) { 
+		if ($script =~ /(\w+)\.\w+/) { $script = $1;}
+		$filebuffer .= " URL=\"$script?attr=$attrfull&obj=$objfull\"";
+	    }
+	    $filebuffer .= "];\n";
+	} elsif ($opt{top} == 0) {
+	    $filebuffer .= "c$i [width=0.25]\n";
+	    if ($attrfull ne "") {
+		$filebuffer .= "c$i -> c$i\[taillabel=\"$attrfull\", labeldistance=2,";
+		$filebuffer .= "labelangle=90,color=transparent\]\n";
+	    }
+	    if ($objfull ne "") {
+		$filebuffer .= "c$i -> c$i\[headlabel=\"$objfull\", labeldistance=1,";
+		$filebuffer .= "labelangle=270,color=transparent\]\n";
+	    }
+	} elsif ($opt{top} == 1) {
+	    $filebuffer .= "c$i [width=0.25]\n";
+	}
+    }
+    for ($i=0; $i<=$#subcpt; $i++) {
+        for ($j=0; $j<=$#subcpt; $j++) {
+            if ($subcpt[$i][$j] ==1 ) {
+		if ($secopt eq "gml") { 
+		    $filebuffer .= "edge [ source $i target $j ]\n";
+		} else { $filebuffer .= "c$i -> c$j\n"; }
+            }
+        }
+    }
+    if ($secopt eq "gml") { $filebuffer .= "]\n"; }
+    else { $filebuffer .= "}\n"; }
+    return $filebuffer;
+}
+
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+sub showerror {
+    my ($sentence,$severity) = ($_[0],$_[1]);
+
+    if ($severity == 0) {
+        print "Warning: $sentence The output may not be meaningful.\n";
+    } elsif ($severity == 1) {
+        print "Error: $sentence\n";
+        exit;
+    }
+}

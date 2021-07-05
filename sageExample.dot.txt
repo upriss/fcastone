@@ -1,0 +1,38 @@
+digraph Lat{
+ node[shape=circle,style=filled,label=""];
+edge[dir="none",minlen=2];
+c0 [width=0.25]
+c1 [width=0.25]
+c1 -> c1[headlabel="man", labeldistance=1,labelangle=270,color=transparent]
+c2 [width=0.25]
+c2 -> c2[headlabel="boy", labeldistance=1,labelangle=270,color=transparent]
+c3 [width=0.25]
+c3 -> c3[taillabel="male", labeldistance=2,labelangle=90,color=transparent]
+c4 [width=0.25]
+c4 -> c4[headlabel="woman", labeldistance=1,labelangle=270,color=transparent]
+c5 [width=0.25]
+c5 -> c5[taillabel="adult", labeldistance=2,labelangle=90,color=transparent]
+c6 [width=0.25]
+c6 -> c6[headlabel="girl", labeldistance=1,labelangle=270,color=transparent]
+c7 [width=0.25]
+c7 -> c7[taillabel="juvenile", labeldistance=2,labelangle=90,color=transparent]
+c8 [width=0.25]
+c8 -> c8[taillabel="female", labeldistance=2,labelangle=90,color=transparent]
+c9 [width=0.25]
+c1 -> c0
+c2 -> c0
+c3 -> c1
+c3 -> c2
+c4 -> c0
+c5 -> c1
+c5 -> c4
+c6 -> c0
+c7 -> c2
+c7 -> c6
+c8 -> c4
+c8 -> c6
+c9 -> c3
+c9 -> c5
+c9 -> c7
+c9 -> c8
+}

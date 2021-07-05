@@ -1,0 +1,781 @@
+<html>
+<head>
+<title>FcaStone: FCA file format conversion software</title>
+</head>
+<body>
+
+<h3>FcaStone: software for FCA file format conversion and interoperability</h3>
+
+<a name="contents">
+Contents of this document: 
+
+<ul>
+<li><a href="#features">Introduction</a>
+<li><a href="#fcaflint">FcaStone and FcaFlint</a>
+<li><a href="#examples">Examples of lattices generated with the software</a>
+<li><a href="#download">Downloading the software</a>
+<li><a href="#installUnix">Installation on Unix, Linux, Mac OS X</a>
+<li><a href="#installWindows">Installation on Windows</a>
+<li><a href="#installGraphviz">Installation of Graphviz</h3>
+<li><a href="#formats">Supported Formats</a>
+<li><a href="#labels">How to format the labels in the lattice diagrams</a>
+<li><a href="#command">Running the command/man page</a>
+<li><a href="#tools">More details on using FcaStone with other tools</a>
+<li><a href="#faq">Troubleshooting/FAQ</a>
+</ul>
+
+<a name="features">
+<h3>Introduction</h3>
+
+FcaStone (named in analogy to "Rosetta Stone")
+is a command-line utility that converts between the file
+formats of commonly-used FCA tools (such as 
+<a href="http://tockit.sourceforge.net/">ToscanaJ</a>, 
+<a href="http://sourceforge.net/projects/conexp">ConExp</a>,
+<a href="http://www.iro.umontreal.ca/~galicia/">Galicia</a> and
+Colibri) 
+and between FCA formats and other graphics formats. The main purpose
+of FcaStone is to improve the interoperability between FCA,
+graph editing and vector graphics software.
+
+<p>
+
+FcaStone can
+
+<ul>
+<li> convert between commonly used FCA file formats (cxt, cex, csc,
+slf, bin.xml, and csx).
+<li> convert between FCA file formats and comma separated value (csv) files as
+exported from and imported into databases and spreadsheets.
+<li> convert formal contexts into the xfig format 
+or into Bernhard Ganter's latex format.
+<li> convert concept lattices into graph formats 
+(dot, gxl, gml, ...) for use by graph editors
+(<a href="http://www.yworks.com/en/products_yed_about.html">yEd</a>,
+<a href="http://www.jgraph.com/">jgraph</a>, ...) or
+into vector graphics formats (fig, svg, ...) for use by vector graphics editors
+(<a href="http://www.xfig.org/">Xfig</a>,
+<a href="http://live.gnome.org/Dia">Dia</a>,
+<a href="http://www.inkscape.org/">Inkscape</a>, ...).
+<li> convert formal contexts into lattice diagrams (using
+<a href="http://www.graphviz.org/">Graphviz's</a> layout). 
+<li> serve as a component of a server-side script for generating
+lattices on webpages.
+</ul>
+
+<p>
+
+Cautions:
+
+<ul>
+<li>
+this software is in an alpha release state, i.e. for developer
+testing. Not everything will work. <a href="#bugs">What to do
+if you find a bug</a>.
+<li>The emphasis of FcaStone is on converting file formats, not
+on fast algorithms for lattice construction
+which are already provided by other FCA software. FcaStone will take
+several seconds to compute a lattice with 100 concepts. 
+</ul>
+
+These features are not yet available, but are planned for future releases:
+
+<ul>
+<li>Converting lattices between different formats in a manner that preserves the 
+graph layout of the lattice. (This would also mean that other 
+FCA software such as Galicia or Colibri could be called from FcaStone in
+order to obtain layouts and efficiency.)
+<li>Database connectivity.
+<li>Convert into other knowledge representation formats (conceptual structures,
+semantic web), if they are suitable for representing lattices.
+</ul>
+
+<a href="#contents">back to table of contents</a>
+
+<hr>
+
+<a name="fcaflint">
+
+<h3>FcaStone and FcaFlint</h3>
+
+The <a href="https://github.com/upriss/fcastone/">
+FcaFlint</a> executable is bundled with FcaStone. FcaFlint implements
+Relation Algebra operations for formal contexts. Both programs can
+be installed and run independently. But if FcaFlint is used with
+contexts other than "cxt" format, it needs
+to be able to call FcaStone. In that case, the installation advice on
+the FcaFlint website should be followed.
+<p>
+<a href="#contents">back to table of contents</a>
+
+<hr>
+
+<a name="examples">
+<h3>Examples of lattices generated with the software</h3>
+
+Examples of files to be used with FcaStone and of lattices generated
+using FcaStone and Graphviz's layouts can be found
+<a href="https://upriss.github.io/fca/examples.html">here</a>.
+
+<p>
+<a href="#contents">back to table of contents</a>
+
+<hr>
+
+<a name="download">
+<h3>Downloading the software</h3>
+
+Please, note that this program is distributed under the 
+<a href="http://www.gnu.org/licenses/gpl.html">GNU General Public License v3</a>.
+<p>
+FcaStone can be 
+<a href="https://sourceforge.net/project/showfiles.php?group_id=218988">
+downloaded as a zip</a>
+archive which contains the fcastone and fcaflint executable scripts,
+the licence and readme files. 
+
+<p>
+<a href="#contents">back to table of contents</a>
+
+<hr>
+
+<a name="installUnix">
+<h3>Installation on Unix, Linux, Mac OS X</h3>
+
+1) Note: FcaStone requires the Perl programming language to be installed. 
+Perl is usually pre-installed in standard Linux and Mac OS X distributions. 
+If Perl is not installed, it is available at 
+<a href="http://www.perl.com/">http://www.perl.com/</a>. 
+For some of the lattice conversion features, Graphviz is required (see 
+<a href="#installGraphviz">below</a>).
+
+<p>
+
+2a) If you have administrator privileges, you should copy the file to a
+shared bin directory (eg /usr/local/bin) and change the file
+permission to executable:
+
+<p><pre>
+sudo mv fcastone /usr/local/bin
+sudo chmod 755 /usr/local/bin/fcastone
+</pre><p>
+
+b) If you do not have administrator privileges, then you should move the
+file to a bin directory that you have access to and that is in your
+path (or create a bin directory under your home directory if it does not
+already exist).
+
+<p><pre>
+mkdir ~/bin
+mv fcastone ~/bin
+chmod 755 ~/bin/fcastone
+</pre><p>
+
+If this bin directory is not in your path, then you need to add it to your
+PATH variable (see <a href="http://kb.iu.edu/data/acar.html">here</a>
+for further information on changing the Unix PATH variable).
+
+<p>
+
+3) If you are getting a "command not found" error right after installation, 
+you'll need to run 
+something like "rehash" or, alternatively, you could logout/login at
+this point. Also, check the location of perl (for example by
+typing "which perl"). Perl is expected to be installed in /usr/bin. 
+If necessary, edit
+the first line of the fcastone executable so that it contains the
+correct location of your perl installation.
+
+<a name="installWindows">
+<h3>Installation on Windows</h3>
+
+1) Note: FcaStone requires the Perl programming language to be installed. 
+It is not difficult to install and run this software on a PC,
+but Windows users may not be used to command-line programs.
+
+<p>
+
+Information about installing Perl can be found 
+<a href="http://www.perl.com/download.csp#win32">here</a>.
+I have tested installing <a href="http://www.activestate.com/downloads/">
+ActivePerl</a>, which is freely available and can be downloaded as
+an msi file. The default installation sets the PATH variable so
+that it can find the Perl executable. 
+<a href="http://www.c3scripts.com/tutorials/activeperl/">This
+website</a> contains a short tutorial on installing ActivePerl
+and on how to use the DOS prompt.
+
+<p>
+
+2) In order to avoid having to type long path names, it is probably
+easiest to move the fcastone file into a directory which also
+contains the FCA files that are to be used. The fcastone
+file can be changed to executable format, or it can
+be executed by preceding it with perl, i.e., "perl fcastone ...".
+It might be useful to rename fcastone to fcastone.pl, so that 
+Windows knows the filetype.
+
+<a name="installGraphviz">
+<h3>Linux, Mac OS X and Windows:
+Installation of <a href="http://www.graphviz.org/">Graphviz</a></h3>
+
+For some of the lattice conversions,
+FcaStone requires AT&T's Graphviz program "dot" to be installed. 
+Installation on Mac OS X, Windows and several Linux flavours is easy
+because precompiled
+versions of Graphviz are available and can be downloaded from the 
+<a href="http://www.graphviz.org/">Graphviz website</a>. (It is advisable
+to install a recent version. Some package archives contain very old versions
+of Graphviz, which run much slower.)
+
+<p>
+
+The table below shows which features require Graphviz and which don't.
+
+<p>
+
+Note for use on a webserver:
+unfortunately, it may be impossible to install Graphviz on a webserver
+on a commercially hosted account (unless you can find a statically compiled
+version of the dot executable which can be copied to the webserver), because 
+service providers 
+don't usually give out administrator passwords. It should be possible, however,
+to install Graphviz on a virtual private server  (because such accounts
+come with administrator privileges).
+
+<p>
+
+FcaStone passes the data
+straight to Graphviz. This means that only those output file formats are 
+available which are supported by the local Graphviz installation.
+If the labels in the lattice diagrams are not readable, then there is a problem
+with Graphviz's ability to find the local fonts (see Graphviz's documentation).
+If one of the formats does not work, try another (eg. gif instead of jpg).
+The file fcaStoneDotErrors.log shows the errors and warnings produced by
+Graphviz. The name of this file can be changed or it can be suppressed
+by editing the line that starts with "my $errorslocation = " in fcastone.
+
+<p>
+
+If Graphviz is installed in a location that is not in the main Shell
+path, it is useful to uncomment the line in fcastone that starts with 
+"# $dotlocation = " and edit it to point to the location of dot.
+
+
+<p><a href="#contents">back to table of contents</a>
+
+<hr>
+
+<a name="formats">
+<h3>Supported Formats</h3>
+
+<table border=1 cellpadding=5>
+<tr><th>extension<th>I/O<th>type<th>scope<th>Graphviz<br>required?<th>comments
+<tr><td>cxt<td rowspan=5>input/output<td rowspan=4>FCA format
+<td rowspan=7>only context<td rowspan=8>no<td>P. Burmeister's format
+
+<tr><td>con
+<td>Colibri format
+<tr><td>slf
+<td><a href="http://www.iro.umontreal.ca/~galicia/">Galicia</a> format
+
+<tr><td>bin.xml
+<td><a href="http://www.iro.umontreal.ca/~galicia/">Galicia</a> format
+
+<tr><td>tuples<td>tab separated values
+<td><a href="http://tockit.sourceforge.net/">Tupleware</a> format
+<br> (like csv, but tab instead of comma<br>+ additional first line)
+<br>only two column files supported
+
+<tr><td>html<td>output only<td>html table<td>can be used with scripts
+<tr><td>csv<td rowspan=4>input/output
+<td>comma separated values<td>used by databases/spreadsheets
+<tr><td>csc<td rowspan=3>FCA format <td  rowspan=5> context + lattice
+<td>F. Vogt's Anaconda format <br>(lattice not implemented)
+<tr><td>cex<td>no
+<td><a href="http://sourceforge.net/projects/conexp">ConExp</a>, 
+lattice not yet implemented
+
+<tr><td>csx<td>no<td>
+<a href="http://tockit.sourceforge.net/">ToscanaJ</a>, lattice not yet implemented
+
+<tr><td>fig<td rowspan=11>output only
+<td>vector graphics<td rowspan=2>yes for lattice<td>
+<a href="http://www.xfig.org/">xfig</a>
+
+<tr><td>tex<td>latex<td>to be used with
+<a href="http://www.math.tu-dresden.de/~ganter/fca/">B. Ganter's fca.sty</a>,
+<br> lattice not yet implemented
+
+<tr><td>dot<td rowspan=3>graph format <td rowspan=9>only lattice<td>no
+<td><a href="http://www.graphviz.org/">Graphviz</a> format
+
+<tr><td>gml<td>no<td>
+
+<tr><td>gxl<td rowspan=7>yes<td rowspan=7>format availability depends<br>
+on local Graphviz installation
+
+<tr><td>svg<td>vector graphics
+<tr><td>jpg<td rowspan=3>raster graphics
+<tr><td>gif
+<tr><td>png
+<tr><td>ps<td rowspan=2>page description format
+<tr><td>pdf
+</table>
+<p>
+Other formats:
+<p>
+Many tools for image conversion exist elsewhere. Depending on the 
+local Graphviz installation, more options may be available
+(eg. running "dot -Tdia -o outputfilename inputFileInDotFormat" on
+Linux will produce output suitable for the 
+<a href="http://live.gnome.org/Dia">Dia</a> program). Programs such as
+ps2eps, fig2dev, ImageMagick's "convert", etc provide further options
+for file conversions. 
+
+<p>
+<a href="#contents">back to table of contents</a>
+<hr>
+
+<a name="labels">
+<h3>How to format the labels in the lattice diagrams</h3>
+
+It is difficult to represent FCA lattices in non-FCA graph formats 
+because concept lattices use up to two labels per node
+(objects and attributes) which is unusual compared to other graph
+applications. Since there is no graph format that is universally 
+accepted as a standard by a variety of tools, it is furthermore
+difficult to decide which graph formats to convert to.
+
+<p>
+
+The default in FcaStone is to concatenate the labels belonging
+to the same node into one
+string which is then cut off after 30 characters. If the -c option is
+used, the  objects and attributes are "clarified", i.e., only at most one
+object and attribute of each node is represented. The -t option
+places the labels of each node on top of each other. This is only
+useful if the output file is of type fig or svg and the file is
+afterwards edited in a vector graphics editor. 
+
+<p>
+
+Two lattice designs are available (see some
+<a href="https://upriss.github.io/fca/examples.html">examples</a>).
+Using the -b option, each node is represented 
+as a box. The objects are listed in the bottom half, the attributes in
+the top half. The advantage of this format is that the labels never
+overlap because Graphviz will adjust the box sizes depending on the
+label sizes. The disadvantage is that this is not the standard FCA way
+of representing lattices. The other design (which is default) is more
+similar to traditional FCA lattices, with the disadvantage that labels
+can overlap. The -t option only applies to the second design. 
+These design choices are based on what can be stored in the dot format.
+The gml output of FcaStone just places the labels across the nodes,
+which is not satisfactory. Therefore, gml output should only be used
+if the lattice is afterwards manually edited.
+
+<p>
+
+In general, automatically generated lattices will probably never be as
+perfect as hand drawn ones. If perfect lattice  pictures are desired, 
+then traditional FCA tools should be used.
+FcaStone's facility for lattice generation is more aimed at
+applications in which the lattices cannot be hand drawn (such
+as automatically generated ones on webpages) and don't need to be
+perfect (for example, because they are just used to provide a rough
+sketch of what the lattice looks like). 
+
+<p>
+<a href="#contents">back to table of contents</a>
+<hr>
+
+<a name="command">
+<h3>Running the command/man page</h3>
+
+NAME
+<blockquote>
+fcastone
+</blockquote>
+
+SYNOPSIS
+<blockquote>
+fcastone [-bBcgijmnNOprstuUw] <u>inputfile</u> <u>outputfile</u><br>
+fcastone -l
+</blockquote>
+
+
+DESCRIPTION
+<blockquote>
+The program determines the type of the format conversion by looking at
+the file extensions of the input and output files. If the files have
+incorrect extensions or are not correctly formated with respect to how
+FCA files with such extensions are usually formated, then the
+conversion will not work. 
+The input and output files can be provided as PATH names, but the 
+PATHs cannot contain any dots. Basically, everything after
+the first dot is considered the extension of the file.
+<p>
+At the moment only files which contain one (binary) formal context and/or one 
+lattice diagram can be processed. 
+<p>
+
+<p>
+The following options are available:
+
+<table cellpadding = 10>
+<col width="5%"><col width="95%">
+<tr><td valign=top>-b <td> Box format: the nodes in the lattice are
+displayed as boxes, which contain the objects and attributes.
+
+<tr><td valign=top>-B <td> another Box format: the nodes in the lattice are
+displayed as boxes, which contain the objects and attributes. Attributes
+are separated by commas and the list of attributes is truncated if it is too long. 
+Objects are separated by space and not truncated. This format is used by the -j option 
+(where the objects are image files).
+
+<tr><td valign=top>-c <td> Clarify: the lattice diagram is clarified,
+which means that if more than one object or attribute belong to the 
+same node, only one is printed. 
+
+<tr><td valign=top>-g <td> Graphviz: the lattice layout will be calculated
+with Graphviz (which means that Graphviz must be installed). 
+It is not necessary to use -g with svg, jpg, gif, png, ps and pdf 
+files because these imply using Graphviz. But for cex, csx, fig, and tex 
+files using -g ensures that the lattice, not the context is generated 
+(although this is only implemented for fig at the moment). 
+In case of dot files, the -g option results in the coordinates being
+included in the file.
+
+<tr><td valign=top>-i <td> Imagemap: adds clickable links of the
+format "script?attr=...+obj=..." to the nodes. This is only useful
+on a webserver with svg files or html imagemaps. The script that 
+responds to the request needs to be installed in the same directory
+and must have the same name as the output file without extension. For example,
+if a script calls "fcastone -w -i format.cxt answer.svg", then the
+responding script must be called "answer". Because of the use of "-w",
+no output file "answer.svg" is produced (see the examples
+below). The "-i" option implies "-b", unless used with "-B".
+
+<tr><td valign=top>-j <td> image files, such as Jpg, png, gif, etc:
+instead of names of objects. It is advisable to use thumbnail-sized 
+images. In svg output, clicking on a thumbnail will open the image 
+in full size. The names of the image files should be provided 
+as "path_to_thumbnail|path_to_fullimage" or as "path_to_thumbnail" (if
+there is no full-sized image). Svg output files link to the images
+but do not include them, therefore the paths to the files need to be
+correct while FcaStone is running and while the svg files are viewed. 
+For non-svg output formats it may be necessary to install extra Graphviz plugins.
+The "-j" option implies "-B". 
+
+<tr><td valign=top>-l <td> Licence: running "fcastone -l" without
+any other arguments prints the licence and warranty disclaimer.
+
+<tr><td valign=top>-m <td> Microsoft: prints the output file with Microsoft
+style line breaks. This is only relevant for non-XML text files. 
+
+<tr><td valign=top>-n <td> No input file: reads from STDIN instead of
+a file. The command-line should contain something like "format.cxt"
+instead of the name of the input file to indicate the type of the input data.
+The "-n" option implies "-s".
+
+<tr><td valign=top>-N <td> No output file: writes to STDOUT instead of a file.
+The command-line should contain something like "format.cxt"
+instead of the name of the output file to indicate the type of the output data.
+The "-N" option implies "-s".
+
+<tr><td valign=top>-O <td> One line input/output: this option is only
+needed if FcaStone is called from a program using bidirectional
+communication which can only send/receive one line at a time.
+The internal linebreaks of non-XML files should be replaced with the 
+character sequence '|%|%' for this purpose. For XML files, linebreaks
+should simply be removed.
+The "-O" option implies "-s".
+
+<tr><td valign=top>-p <td> Pipe: only relevant for csv files. Use a pipe
+(|) instead of a comma as delimiter. This option should be used if the
+data contains commata. (Note: tab delimited files are provided by
+the .tuples extension.)
+
+<tr><td valign=top>-r <td> Rotating: only relevant for tex files.
+Ensures that the attributes are rotated sideways in the formal context.
+
+<tr><td valign=top>-s <td> Silent mode: suppresses warnings about output files being
+overwritten if files with such names already exist.
+
+<tr><td valign=top>-t <td> on Top: labels belonging to the same node
+are printed on top of each other. This is only useful for fig and svg
+files which are edited manually in a vector graphics editor. 
+
+<tr><td valign=top>-u <td> Unicode: tells FcaStone explicitly that the
+incoming data is in UTF-8 format. In most cases, this option will not
+make a difference. This option should not be used together with "-U".
+
+<tr><td valign=top>-U <td> Unicode: converts incoming UTF-8 data into
+numeric character references. This option should be used if non-ASCII
+characters do not display properly and the
+output file is an XML file (html, svg, cex, csx, ...).
+The input file should be in UTF-8 encoding.
+
+<tr><td valign=top>-w <td> Web mode: this mode reads the input from STDIN,
+writes the output to STDOUT and replaces "\n" with &#60;br&#62;.
+In this manner, fcastone can be called
+from a server-side script that generates a graphics file of a concept
+lattice to be displayed on a webpage. See the examples below.
+The "-w" option implies "-snN".
+</table>
+</blockquote>
+
+EXAMPLES
+<blockquote>
+fcastone waters.cxt waters.cex<br>
+fcastone -g waters.cxt waters.fig<p>
+
+Use on a website (Perl, explanation below):
+<pre>
+#!/usr/local/bin/perl
+use CGI;
+print "Content-type: image/gif\n\n";
+$fcacontent = "object1,attr1\n object1,attr2\n";
+open (PIPE, "| fcastone -w -b format.csv format.gif");
+print PIPE $fcacontent;
+close PIPE;
+</pre>
+Use on a website (PHP, explanation below):
+
+<pre>
+&#60;?php
+header("Content-type: text/html");
+$fcacontent = "object1,attr1\n object1,attr2\n";
+$descriptorspec = array(0 => array("pipe", "r"),1 => array("pipe", "w") );
+$process = proc_open('/usr/local/bin/fcastone -w -b format.csv format.cxt',$descriptors\
+pec,$pipes);
+
+if (is_resource($process)) {
+
+fwrite($pipes[0],  "$fcacontent");
+fclose($pipes[0]);
+while (! feof($pipes[1])) {$retval .= fgets($pipes[1]);}
+echo $retval;
+fclose($pipes[1]);
+$return_value = proc_close($process);
+}
+?>
+</pre>
+
+
+In these examples, format.csv and format.gif are just strings that indicate 
+which formats are used for input and output; they are not filenames. 
+The variable $fcacontent contains a context in csv format. SECURITY
+WARNING: any form variables that are piped into a program must be
+carefully checked for insecure data because otherwise a hacker
+might be able to execute any command on the server. For further explanations
+of this risk, do a websearch on "user submitted data" "security".
+<p>
+Also, see the <a href="#faq">troubleshooting</a> comments below.
+</blockquote>
+
+FILES
+<blockquote>
+fcaStoneDotErrors.log <br>(This file is created in the current directory
+and contains any errors or warnings produced by running Graphviz's dot.)
+</blockquote>
+
+<a name="bugs">
+BUGS
+<blockquote>
+This version is an alpha release of the software. I am sure there are still
+many bugs in the software. If you find a bug, please, send me an email
+(see <a href="http://www.upriss.org.uk">http://www.upriss.org.uk</a> for
+my current email address). Please, include the following in your email:
+1) the command-line that you used, 2) the name of the operating system
+of your computer, 3) a short description of the problem, 4) the input file 
+as an attachment.
+</blockquote>
+
+
+AUTHOR
+<blockquote>
+This program was written by Uta Priss 
+(<a href="http://www.upriss.org.uk">http://www.upriss.org.uk</a>). More 
+information on FCA can be found at 
+(<a href="http://www.upriss.org.uk/fca/">http://www.upriss.org.uk/fca/</a>).
+<p>
+The algorithm for calculating the
+concepts is an implementation of Bernhard Ganter's algorithm
+described in "Two basic algorithms in concept analysis." Technische
+Hochschule Darmstadt, FB4-Preprint, 831, 1984. (It's slow because
+it's implemented using strings - the algorithm itself is fine.)
+</blockquote>
+
+<a href="#contents">back to table of contents</a>
+
+<hr>
+
+<a name="tools">
+<h3>More details on using FcaStone with other tools</h3>
+
+<p><b>Text formatting</b><p>
+
+<li><b>Latex:</b><br>
+
+Latex is a document markup and preparation system.
+The FCA latex output is to be used with 
+<a href="http://www.math.tu-dresden.de/~ganter/fca/">B. Ganter's fca.sty</a>.
+Only contexts (not lattices) can currently be generated.
+
+
+<p><b>Graph layout and editors</b><p>
+
+<li><b>Graphviz:</b><br>
+
+<a href="http://www.graphviz.org/">Graphviz</a>
+is an open source (CPL licence) graph layout program with dot as its
+native format. It provides a variety of file conversion options.
+FcaStone calls it in order to produce the lattice layouts.
+It comes with the XWindows program "dotty", which can be used to
+edit the lattices (stored in dot format). A list of other tools that
+can be used with dot files, is available on the Graphviz website.
+
+<li><b>yEd:</b><br>
+
+<a href="http://www.yworks.com/en/products_yed_about.html">yEd</a> 
+is a closed source, proprietary, but free to download, Java-based
+graph editor with GraphML as its native format. It is easy to install
+on Windows (exe file), Mac OS (dmg file) and Unix/Linux (sh file).
+It can
+import gml files. yEd has its own graph layout functionality. 
+FcaStone can produce gml files without Graphviz being installed
+(but see <a href="#labels">the comment</a> about the labels
+in gml files).
+
+<li><b>jGraph:</b><br>
+
+<a href="http://www.jgraph.com/">jgraph</a>
+is an open source, proprietary, but free to download, Java-based
+graph editor. Presumably it can read gxl files, but I 
+have not tested this.
+
+
+<p><b>Vector graphics editors</b><p>
+
+<li><b>Xfig/WinFig/jfig:</b><br>
+
+<a href="http://www.xfig.org/">Xfig</a> is a Unix (Linux, Mac OS X) 
+vector graphics editor with fig as its native format. For installation:
+there is a tar.gz file on the website. On Mac OS, a binary can be installed
+via <a href="http://www.finkproject.org/">Fink</a>. On Linux, it should
+be available through the usual package management systems.
+<a href="http://www.schmidt-web-berlin.de/winfig/">WinFig</a> is a version 
+that runs on PCs;
+<a href="http://tams-www.informatik.uni-hamburg.de/applets/jfig/">jfig</a>
+is platform independent.
+<br>
+
+Without the "-g" option, FcaStone produces a fig file of the context.
+With the "-g" option, the lattice is produced.
+
+<li><b>Inkscape:</b><br>
+
+<a href="http://www.inkscape.org/">Inkscape</a>
+is a an open-source, vector graphics editor with svg as its native format.
+It can be downloaded and installed via sourceforge as binary versions
+for Linux (package), Mac OS X (dmg), and Windows (exe).
+Lattices in svg format can be uploaded into Inkscape. Inkscape has
+a connector facility which would make it possible to edit graphs
+so that moving a node also moves the connected edges. Unfortunately,
+the connections are stored using special Inkscape-only xml tags, which
+do not correspond to the svg files that are generated by Graphviz.
+
+<li><b>Dia:</b><br>
+
+<a href="http://live.gnome.org/Dia">Dia</a> is a GTK+ based diagram creation 
+program for Linux, Unix and Windows released under the GPL license. It
+is pre-installed on many Linux distributions. A Windows executable is
+available. On other Unix and Mac OS X, it has to be installed from source.
+Graphviz can convert dot files into dia files, if the required
+libraries are installed (using
+"dot -Tdia -o outputfilename inputFileInDotFormat").
+
+<p>
+
+<a href="#contents">back to table of contents</a>
+
+<p><hr><p>
+
+<a name="faq">
+<h3>Troubleshooting/FAQ</h3>
+
+<ul>
+<li><b>How can I represent Unicode (non-ASCII) characters?</b><br>
+This depends on the local setting (operating system, fonts, etc).
+If one of the output formats (pdf, svg, png, jpg, gif, ps) 
+does not work, other formats should be tried.
+Starting with version 0.2, FcaStone provides several options for using
+UTF-8 encoded data:<br>
+<ul>
+<li> In some cases, no action is required. 
+<li>If that fails, the "-u" option can be used to tell FcaStone explicitly that the
+data is in UTF-8.
+<li>If that fails, the "-U" option converts incoming UTF-8 data into numeric
+character references. This will only work if the output file is an
+XML file (html, svg, cex, csx, ...).
+<li>It should be checked whether any programs that are used to view the
+output files support UTF-8. 
+<li>If the data is in some other encoding, it should be converted to
+UTF-8 before using FcaStone. On Unix, this can be done with "iconv".
+</ul>
+More information on Unicode can be found on the
+<a href="http://www.unicode.org">Unicode website</a>. 
+<li><b>What kind of special characters are allowed in the names of
+objects and attributes?</b><br>
+That depends on the input and output formats that are used and if Graphviz is
+involved. For csv files, if commas are within the data, the delimiter can be 
+changed to the pipe symbol (|) via the -p option or to 
+the tab character by using the .tuples extension. 
+If Graphviz is involved, double quotes (") are not allowed in the data, unless the -B
+option is used (in which case angle brackets (< >) might cause a problem).
+The combination -> can also be a problem for Graphviz.
+<li><b>Labels in the lattices are too small/misplaced or the
+lattice is printed on two pages</b><br>
+The lattices are produced by Graphviz, not FcaStone. These issues
+depend on the local Graphviz installation. If one of the output
+formats (jpg, gif, pdf, ps, svg) performs poorly, other formats should be tried.
+<li><b>I am getting a "command not found" error</b><br>
+See the <a href="#installUnix">installation information</a>.
+<li><b>Nothing is happening at all</b><br>
+<ul>
+<li>Check the fcaStoneDotErrors.log file to see whether there are
+problems with Graphviz. 
+<li>Type "fcastone -l". If this does not print the licence, fcastone
+is not executed at all. There must be something wrong with the installation.
+</ul>
+<li><b>It works from the command-line, but not as a script through the web</b><br>
+Scripts on the web often run as a different user. 
+<ul>
+<li>Because FcaStone
+writes a file "fcaStoneDotErrors.log", this file may need to be
+manually created and write permission on this file given to others.
+Versions 0.3 or later of FcaStone do not produce this file, if
+FcaStone is invoked with options "-w" or "-N".<br>
+<li>Also, it is possible that the script does not have "/usr/local/bin"
+in its path. In this case, FcaStone should be invoked using "/usr/local/bin/fcastone".
+</ul>
+</ul>
+
+<p>
+
+<a href="#contents">back to table of contents</a>
+
+<p><hr><p>
+
+<ADDRESS>
+<center>
+Copyright 2009 Uta Priss.<br> 
+<a href="http://www.upriss.org.uk">www.upriss.org.uk</a>
+</center>
+</ADDRESS>
+
+<p>
+</body>
+</html>

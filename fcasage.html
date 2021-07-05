@@ -1,0 +1,325 @@
+<html>
+<head>
+<title>Using FCA Software with Sage</title>
+</head>
+<body>
+
+<h4>Using FCA Software with Sage</h4>
+
+The computer algebra software <a href="http://www.sagemath.org/">Sage</a>
+is a free open source alternative to Magma, Maple, Mathematica and
+Matlab. Hopefully, one day someone will write FCA tools that can be 
+fully integrated with Sage. In the meantime, this website explains 
+what can already be done with currently available technology.
+(Further information on how to use Sage and FCA software
+for teaching mathematics can be found in these
+<a href="http://www.upriss.org.uk/maths/7106maths10.html">on-line
+course</a> materials.)
+
+<p>
+
+Sage contains core modules and provides interfaces to packages which
+can also be used individually. Because some of the functionality
+exists both in the Sage core and the individual packages, the code needs
+to be slightly changed depending on whether functions are used via
+Sage or via an individual package. 
+
+<p>
+Contents of this page:
+
+<ul>
+<li><a href="#preprocessing">Files used in the code examples/Preprocessing 
+with FcaStone</a>
+<li><a href="#netwcont">NetworkX: importing formal contexts as graphs</a>
+<li><a href="#netwlat">NetworkX: importing concept lattices as graphs</a>
+<li><a href="#netwdot">NetworkX: producing gif files of the graphs (via Graphviz)</a>
+<li><a href="#matrix">Matrices: importing formal contexts as matrices</a>
+<li><a href="#poset">Using lattice/poset operations</a>
+<li><a href="#future">Future: How to develop a full FCA/Sage tool</a>
+<li><a href="#ref">References</a>
+</ul>
+
+<a name="preprocessing">
+<h4>Files used in the code examples/Preprocessing with FcaStone</h4>
+
+The code below uses the formal context from 
+<a href="https://upriss.github.io/fca/fcaintro.html#example">this example</a>.
+The <a href="https://github.com/upriss/fcastone/">FcaStone</a> command-line
+tool was used to convert between the different FCA file formats. For example, 
+to convert from cxt to csv format:
+
+<font color=blue><pre>
+fcastone sageExample.cxt sageExample.csv
+</pre></font>
+
+The following files are used in the code examples below
+(the "txt" extensions should be removed after saving the files):
+
+<ul>
+<li><a href="sageExample.cxt.txt">sageExample.cxt</a> 
+<li><a href="sageExample.csv.txt">sageExample.csv</a>
+<li><a href="sageExample.dot.txt">sageExample.dot</a> (the 
+<a href="http://www.graphviz.org/">Graphviz</a> version of the lattice)
+<li><a href="sageExampleMatrix.txt">the matrix of the context</a> which was produced by
+converting the file to "slf" format and then manually deleting the
+first part of the file up to and including "[relation]"
+<li><a href="sageExampleLattice.csv.txt">sageExampleLattice.csv</a>
+(the csv file of the lattice graph, produced from sageExample.dot
+by the script described below)
+</ul>
+
+It is possible to call FcaStone via a system call from Sage. The
+following example converts a cxt file into a slf file using FcaStone.
+It then processes the slf file by deleting the first lines up to and
+including "[relation]", splitting the lines into
+arrays and finally creating a binary matrix of the relation in Sage:
+
+<font color=blue><pre>
+import subprocess
+import string
+from sage.all import *
+
+pipe = subprocess.Popen("fcastone -N sageExample.cxt filename.slf", \
+shell=True, bufsize=1,stdout=subprocess.PIPE).stdout
+text = pipe.readlines()
+pipe.close()
+
+text= text[(text.index("[relation]\n") +1):]
+for i in range(len(text)):
+   text[i] = string.split(text[i])
+
+M1 = Matrix(GF(2),text)
+print M1
+</pre></font>
+
+<a name="netwcont">
+<h4>NetworkX: Importing formal contexts as graphs</h4>
+
+The <a href="http://networkx.lanl.gov/">NetworkX</a> tool (which is
+part of Sage) provides numerous graph algorithms. The easiest way
+to import a formal context into NetworkX is to use a csv file
+which can be obtained as described in the <a href="#preprocessing">previous 
+section</a>. Note: it is important not to have blank lines at the end
+of the csv file.
+
+This can now be imported into NetworkX as a graph as follows:
+
+<font color=blue><pre>
+from networkx import *
+G = read_edgelist("sageExample.csv",delimiter=",")
+</pre></font>
+
+or into Sage:
+
+<font color=blue><pre>
+import networkx
+from sage.all import *
+G = networkx.read_edgelist("sageExample.csv",delimiter=",")
+G2 = Graph(G)
+</pre></font>
+
+In this case G is a graph in the NetworkX format whereas G2 is the
+same graph in Sage's format. G can use NetworkX functions (e.g.
+<font color=blue>G.nodes()</font>), whereas G2 can use either
+Sage functions (<font color=blue>G2.show()</font>) or 
+NetworkX functions (<font color=blue>G2.networkx_graph().nodes()</font>).
+
+<p>
+NetworkX can be used to analyse the (bipartite) graph consisting
+of formal objects and formal attributes in a variety of manners. NetworkX also
+allows to convert the data into a number of other 
+formats, including <a href="#matrix">matrices</a>.
+
+<a name="netwlat">
+<h4>NetworkX: Importing concept lattices as graphs</h4>
+
+In order to import a concept lattice as a graph into NetworkX, the 
+"dot" file of the lattice <a href="#preprocessing">as produced by FcaStone</a>
+can be converted into a csv file of the lattice graph using the
+following Python script. The script reads a file sageExample.dot and
+outputs a file sageExampleLattice.csv. This script will only work with
+dot files produced by FcaStone, not dot files in general. 
+
+<font color=blue><pre>
+import re
+file = open("sageExample.dot","r")
+text = file.readlines()
+file.close()
+
+outputfile = open("sageExampleLattice.csv","w")
+
+keyword1 = re.compile(r"\[|\{|\}")
+keyword2 = re.compile(r" -> ")
+
+for line in text:
+    if not keyword1.search (line):
+         outputfile.write(keyword2.sub(",",line))
+</pre></font>
+
+<p>
+This can be read into NetworkX using<br>
+<font color=blue>
+G = networkx.read_edgelist("sageExampleLattice.csv",delimiter=",",create_using=DiGraph())
+</font>.
+
+<p>
+If pygraphviz or pydot are installed, it is also possible to read a 
+dot file into NetworkX using read_dot(path). Most likely the dot
+file produced by FcaStone might need to be edited before it can be
+read in this manner because it contains invisible edges for placing the
+labels.
+
+<a name="netwdot">
+<h4>NetworkX: Producing gif files of the graphs (via Graphviz)</h4>
+
+Using Sage, graphs can be visualised using <font color="blue">G.show()</font>.
+<p>
+In order to visualise the graphs using NetworkX (without Sage), one needs to install
+further software. If <a href="http://www.graphviz.org/">
+Graphviz</a> is installed, then the proper interfaces
+are established via pygraphviz or pydot. If one does not want 
+to also install those tools, there is  a very primitive write_gif()
+function that produces gifs using Graphviz without pygraphviz or pydot.
+The code is available <a href="http://www.upriss.org.uk/maths/writegif.html">here</a>
+and some more information on how to use it is on 
+<a href="http://www.upriss.org.uk/maths/ma5.html">this page</a>.
+To install write_gif() one can save it as writegif.py into the readwrite directory
+in NetworkX and edit the __init__.py file in that directory to import
+it.
+
+<a name="matrix">
+<h4>Matrices: importing formal contexts as matrices</h4>
+
+There are at least three different ways of representing matrices in
+Sage: using the Sage core, using Numpy and using Sympy which all have
+different functions and structures. Currently there does not seem to
+be an implementation of Relation Algebra or Boolean Matrix Algebra in
+Sage therefore not all context operations that are common for FCA
+applications are available. But Sage does allow Matrices to be
+represented over GF(2) which ensures that they contain only 0s and 1s.
+<p>
+
+There are different ways of importing formal contexts:
+<p>
+a) Convert the context to slf format and delete everything before and
+including "[relation]". Then use:
+
+<font color=blue><pre>
+import numpy
+from sage.all import *
+M1 = Matrix(numpy.loadtxt("sageExampleMatrix.txt"))
+N1 = M1.change_ring(GF(2))
+</pre></font>
+
+or b) import a csv file of a context, convert it to a graph and from
+there into a matrix:
+<font color=blue><pre>
+import networkx
+import numpy
+from sage.all import *
+G = networkx.read_edgelist("sageExample.csv",delimiter=",")
+M2 = networkx.to_numpy_matrix(G,['girl','woman','boy','man',\
+'female','juvenile','adult','male'])[0:4,4:9]
+N2 = Matrix(numpy.array(M2)).change_ring(GF(2))
+</pre></font>
+
+The conversion from a graph to a matrix depends on which graph node
+corresponds to which matrix row/column. Therefore the to_numpy_matrix()
+function needs to know the sequence of the formal objects and
+attributes. The Numpy matrix is then reduced to those rows and columns
+which form the context (by using [0:4,4:9]) and converted into the Sage
+Matrix format. After issuing these statements N1 and N2 are equal.
+
+
+<p>
+In a similar manner the context can be converted into a 
+Scipy sparse matrix using to_scipy_sparse_matrix(G).
+<p>
+The following table shows some of Sage's matrix operations that
+could be useful for FCA:
+<p>
+<table border =1 cellpadding=2>
+<tr><td>dual matrix (mirrored along diagonal) <td>transpose(N1) 
+<tr><td>apposition of N1 and N2 <td>N1.augment(N2) 
+<tr><td>subposition of N1 and N2 <td>N1.stack(N2) 
+<tr><td>null matrix of dimension i <td>Matrix(GF(2),i,i,0) 
+<tr><td>diagonal matrix of dimension i <td>Matrix(GF(2),i,i,1) 
+<tr><td>test for equality <td> N1 == N2 
+<tr><td>test for containment<td> N1 < N2 
+<tr><td>switching rows i and j <td>N1.swap_rows(i,j) 
+<tr><td>switching columns i and j <td>N1.swap_columns(i,j) 
+<tr><td>forming a submatrix <td>N1.submatrix(i,j,k,l) 
+<tr><td>calculating density <td>N1.density() 
+</table>
+
+<a name="poset">
+<h4>Using lattice/poset operations</h4>
+
+The code example shows how Sage's poset and lattice operations can be
+applied to concept lattices that have been imported as described in
+the section <a href="#netwlat">above</a>.
+
+<font color=blue><pre>
+import networkx
+from sage.all import *
+G = networkx.read_edgelist("sageExampleLattice.csv",delimiter=",",create_using=DiGraph())
+P = Poset((G.networkx_graph().nodes(),G.networkx_graph().edges()),cover_relations=True)
+P.show()
+P1 = Poset(G)
+P1 == P
+P.top()
+P.bottom()
+P.is_meet_semilattice()
+L = LatticePoset(G)
+L.is_distributive()
+
+</pre></font>
+
+<a name="future">
+<h4>Future: How to develop a full FCA/Sage tool</h4>
+
+Challenges/Questions:
+
+<ul>
+<li>There are already a number of FCA Python tools 
+(search for "Python" on <a href="https://upriss.github.io/fca/fcasoftware.html"> 
+this page</a>). Can any of the existing tools be integrated with Sage?
+<li>Data structures (classes) for formal contexts and
+concept lattices that can be integrated with Sage are needed.
+<li>User testing may be required to determine which FCA operations are
+most useful for a command-line environment. (Most likely users prefer
+GUI components for entering formal contexts, browsing lattices; but
+attribute exploration might be a good candidate for Sage.)
+<li>FCA context operations could be developed as matrix operations for
+Sage's core or for Sage's components Numpy or Sympy.
+</ul>
+
+<p>
+If anybody is interested, the Sage community might be 
+<a href="http://groups.google.com/group/sage-devel/browse_thread/thread/e87b59fdeb3b647e">willing
+to help</a> with respect to how to build Sage components.
+
+<a name="ref">
+<h4>References</h4>
+
+<ul>
+<li>Priss, Uta (2010). "Combining FCA Software and Sage." In: 
+Proceedings of the Seventh International Conference on Concept Lattices 
+and Their Applications (CLA'10).
+(<a href="http://www.upriss.org.uk/papers/cla10.pdf">Pdf</a>)
+</ul>
+
+<p><hr><p>
+
+
+<ADDRESS>
+<center>
+Copyright 2010 Uta Priss.<br>
+<a
+<a href="http://www.upriss.org.uk">www.upriss.org.uk</a>
+</center>
+</ADDRESS>
+
+<p>
+</body>
+</html>

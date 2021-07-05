@@ -1,0 +1,190 @@
+<html>
+<head>
+<title>FcaFlint: FCA context operations</title>
+</head>
+<body>
+
+<h3>FcaFlint: software for FCA context operations</h3>
+
+FcaFlint implements context operations for FCA formal contexts.
+It can be used as a standalone tool (in which case the context
+must be formatted in the ".cxt" or "Burmeister" format), or
+it can be used in combination with 
+<a href="https://github.com/upriss/fcastone/">FcaStone</a>  (using any
+context format supported by FcaStone). 
+
+<p>
+
+The context operations of FcaFlint are based on Relation Algebra. 
+Crosses in the ".cxt" format correspond to 1s in Relation Algebra.
+(For background on Relation Algebra with FCA see 
+<a href="http://www.upriss.org.uk/papers/relalgintro.pdf">this introduction</a>).
+Assuming two files "ex1.cxt" and "ex2.cxt":
+<p>
+<table cellpadding=2 border=1>
+<tr><th>Operation <th> Explanation
+<tr><td>dual(ex1.cxt) <td> Objects and attributes are switched. Lattice is upside
+        down.
+<tr><td>invers(ex1.cxt) <td> Invers context: 0s become 1s; 1s become 0s.
+<tr><td>union(ex1.cxt, ex2.cxt) <td> Union: context has 1s where one of the 
+        input contexts has a 1.
+<tr><td>inters(ex1.cxt, ex2.cxt) <td> Intersection: context has 1s where both 
+        of the input contexts have a 1.
+<tr><td>compos(ex1.cxt, ex2.cxt) <td> Relational composition.
+<tr><td>appos(ex1.cxt, ex2.cxt) <td> Apposition: ex1 on the left of ex2. 
+<tr><td>subpos(ex1.cxt, ex2.cxt) <td> Subposition: ex2 underneath of ex1.
+<tr><td>equal(ex1.cxt, ex2.cxt) <td> Compares two matrices. Prints
+        "Matrices are equal" or "Matrices are not equal".
+<tr><td>trans(ex1.cxt) <td> Transitive closure of composition.
+<tr><td>&#60;ONE&#62; <td> Context which contains all 1s.
+<tr><td>&#60;NUL&#62; <td> Context which contains all 0s.
+<tr><td>&#60;DIA&#62; <td> Context which contains 1s on the diagonal, 0s otherwise.
+<tr><td>&#60;AID&#62; <td> Context which contains 0s on the diagonal, 1s otherwise.
+</table>
+
+<p>
+
+Examples: 
+<p>
+<table cellpadding=2 border=1>
+<col width="60%"><col width="40%">
+<tr><td>fcaflint "inters(ex1.cxt,invers((ex1.cxt))" output.cxt<td>
+
+<tr><td>fcaflint "inters(ex1.cxt,compos(ex1.cxt,ex2.cxt))" output.cxt<td>
+
+<tr><td>fcaflint "equal(ex1.cxt,(dual(dual(ex1.cxt))))" output.cxt <td>
+     prints: "Matrices are equal"
+<tr><td>fcaflint "invers(&#60;ONE&#62;)" output.cxt <td>
+     prints: "Result is NUL matrix"
+<tr><td>fcaflint file.bat output.cxt<td>
+     Reads the operations from a batch file "file.bat". 
+     The operations can be formatted using
+     any amount of white space, tabs, newlines. The file should not contain
+     any double quotes.
+</table>
+<p>
+
+Notes:
+
+<li>Filenames must contain only letters and numbers and 
+exactly one dot (such as "ex1.cxt"). They cannot contain PATH 
+information (i.e., this does not work with files "home/user/example.cxt" 
+or "example.lat.xml" etc).
+
+<li>Operations involving 
+&#60;ONE&#62;, &#60;NUL&#62;, &#60;DIA&#62;, &#60;AID&#62;
+will attempt to adjust the matrix dimensions as required. 
+But some combinations are not supported. For example, 
+"appos(&#60;ONE&#62;,&#60;DIA&#62;)" produces an error because this
+neither is a standard matrix, nor it is known what the dimensions are.
+
+<li>Error messages: there is no sophisticated error reporting. If there is
+a syntax error in the operations (for example, the operations are not
+properly nested or the brackets are not matched), a runtime error 
+"Can't use an undefined value" is produced. Some of the other error messages
+are also not user-friendly.
+
+<li>Limits: the software has been tested for contexts with several hundred
+rows. Union and intersection are reasonably fast for larger contexts. Composition
+can be slower. Transitive closure should not be used with larger matrices
+as it can be very slow.
+
+<h4>Installation, Licence, etc</h4>
+
+FcaFlint is bundled with <a href="https://github.com/upriss/fcastone/">FcaStone</a>. 
+An installation of the latest version
+of FcaStone also installs FcaFlint. Both tools use the same licence.
+<p>
+If other file types than "cxt" are requested, FcaFlint will call
+FcaStone, which is expected to be in "/usr/local/bin/".
+If FcaStone is installed in a different location, the line 
+$fcastonelocation = "/usr/local/bin/fcaflint" should be edited in FcaFlint.
+
+<h4>Command-line options</h4>
+
+FcaFlint has the following command-line options:
+
+<table cellpadding = 10>
+<col width="5%"><col width="95%">
+<tr><td valign=top>-F<td> 
+This option provides slightly more checking with respect to the
+compatibility of the sets of objects and attributes. Warnings are
+produced if the sets do not match. The reasoning behind this
+option is further described in the papers given in the References
+below. Without "-F", formal contexts are considered purely as matrices
+(corresponding to an "unnamed perspective"). With "-F", the names of
+the objects and attributes are considered as well. The full version of
+the named perspective as described in the papers is not yet available,
+but planned for future releases.
+
+<tr><td valign=top>-n <td> No input file: reads from STDIN instead of
+a file. The command-line should contain something like "format.cxt"
+instead of the name of the input file to indicate the type of the input data.
+This option is certain to work for "cxt" files, but it may not
+work for other file types on some operating systems or with older Perl distributions.
+If the input consists of more than one file, the character sequence
+"|!|" must be inserted between the files.
+The "-n" option implies "-s".
+
+<tr><td valign=top>-N <td> No output file: writes to STDOUT instead of a file.
+The command-line should contain something like "format.cxt"
+instead of the name of the output file to indicate the type of the output data.
+The "-N" option implies "-s".
+
+<tr><td valign=top>-s <td> Silent mode: suppresses warnings about
+output files being
+overwritten if files with such names already exist.
+</table>
+
+<h4>References</h4>
+
+<ul>
+<li>Priss, Uta. "An Introduction to using Relation Algebra with FCA".
+Available at <a href="http://www.upriss.org.uk/papers/relalgintro.pdf">
+http://www.upriss.org.uk/papers/relalgintro.pdf</a>.
+<li>Priss, Uta.
+"Relation Algebra Operations on Formal Contexts". In:
+Proceedings of the 17th International Conference on Conceptual
+Structures, ICCS'09, Springer Verlag.
+(<a href="http://www.upriss.org.uk/papers/iccs09.pdf">Pdf</a> &#169; Springer-Verlag)
+<li>Priss, Uta.
+"The FcaFlint Software for Relation Algebra Operations
+on FCA Contexts." In: Conceptual Structures Tool Interoperability
+Workshop (CS-TIW 2009), Moscow, Russia.
+(<a href="http://www.upriss.org.uk/papers/cstiw09.pdf">Pdf</a>)
+</ul>
+
+<h4>Links</h4>
+
+<ul>
+<li><a href="http://www.upriss.org.uk/fca/fca.html">FCA Homepage</a>.
+<li><a href="https://upriss.github.io/fca/relalg.html">Relation Algebra
+and FCA</a>.
+<li><a href="https://github.com/upriss/fcastone/">FcaStone</a> software.
+</ul>
+
+<p><hr><p>
+
+<h4>Bugs</h4>
+
+This version is an alpha release of the software. I am sure there are still
+many bugs in the software. If you find a bug, please, send me an email
+(see <a href="http://www.upriss.org.uk">http://www.upriss.org.uk</a> for
+my current email address). Please, include the following in your email:
+1) the command-line that you used, 2) the name of the operating system
+of your computer, 3) a short description of the problem, 4) the input file
+as an attachment.
+
+
+<hr>
+
+<ADDRESS>
+<center>
+Copyright 2009 Uta Priss.<br> 
+<a href="http://www.upriss.org.uk">www.upriss.org.uk</a>
+</center>
+</ADDRESS>
+
+<p>
+</body>
+</html>

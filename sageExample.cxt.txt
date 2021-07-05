@@ -1,0 +1,17 @@
+B
+
+4
+4
+
+girl
+woman
+boy
+man
+female
+juvenile
+adult
+male
+XX..
+X.X.
+.X.X
+..XX

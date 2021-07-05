@@ -1,0 +1,8 @@
+girl,female
+girl,juvenile
+woman,female
+woman,adult
+boy,juvenile
+boy,male
+man,adult
+man,male
