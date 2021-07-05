@@ -4,6 +4,8 @@ FcaStone (named in analogy to "Rosetta Stone") is a command-line utility that co
 The last version of FcaStone is from 2010. It used to be hosted on SourceForge. 
 But it is written in Perl and still works. It does not require any installation apart from copying the Perl file somewhere.
 
+Online documentation about this software can be found here: https://upriss.github.io/fcastone/index.html
+
 More information on FCA can be found here: https://upriss.github.io/fca/fca.html
 
 Other FCA tools in Github are here: https://github.com/topics/formal-concept-analysis
